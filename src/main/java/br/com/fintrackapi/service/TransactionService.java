@@ -1,5 +1,7 @@
 package br.com.fintrackapi.service;
 
+import static java.util.Objects.nonNull;
+
 import br.com.fintrackapi.domain.BankAccount;
 import br.com.fintrackapi.domain.Category;
 import br.com.fintrackapi.domain.CreditCard;
@@ -12,14 +14,11 @@ import br.com.fintrackapi.exception.NotFoundException;
 import br.com.fintrackapi.repository.TransactionRepository;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import static java.util.Objects.nonNull;
 
 @Service
 @Transactional
@@ -118,9 +117,8 @@ public class TransactionService {
 
     public void delete(UUID id, UUID ownerId) {
         Transaction transaction = findById(id, ownerId);
-        UUID invoiceId = nonNull(transaction.getInvoice())
-                ? transaction.getInvoice().getId()
-                : null;
+        UUID invoiceId =
+                nonNull(transaction.getInvoice()) ? transaction.getInvoice().getId() : null;
 
         transactionRepository.delete(transaction);
 

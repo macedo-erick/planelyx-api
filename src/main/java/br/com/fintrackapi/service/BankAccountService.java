@@ -55,7 +55,7 @@ public class BankAccountService {
 
     public void delete(UUID id, UUID ownerId) {
         BankAccount account = findById(id, ownerId);
-        
+
         bankAccountRepository.delete(account);
     }
 }
