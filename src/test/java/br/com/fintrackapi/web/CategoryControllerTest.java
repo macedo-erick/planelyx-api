@@ -9,11 +9,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import br.com.fintrackapi.domain.Category;
-import br.com.fintrackapi.domain.CategoryType;
+import br.com.fintrackapi.domain.enums.CategoryType;
 import br.com.fintrackapi.security.CurrentUser;
 import br.com.fintrackapi.security.SecurityConfig;
 import br.com.fintrackapi.service.CategoryService;
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -47,7 +46,6 @@ class CategoryControllerTest {
                 .ownerId(ownerId)
                 .name("Groceries")
                 .type(CategoryType.EXPENSE)
-                .createdAt(Instant.now())
                 .build();
         when(categoryService.findAll(ownerId)).thenReturn(List.of(category));
 

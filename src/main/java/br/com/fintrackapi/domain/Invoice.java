@@ -1,5 +1,6 @@
 package br.com.fintrackapi.domain;
 
+import br.com.fintrackapi.domain.enums.InvoiceStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -28,7 +29,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Invoice {
+public class Invoice extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -56,7 +57,4 @@ public class Invoice {
 
     @Column(name = "paid_at")
     private Instant paidAt;
-
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
 }

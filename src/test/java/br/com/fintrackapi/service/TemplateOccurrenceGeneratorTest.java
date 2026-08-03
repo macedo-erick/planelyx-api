@@ -8,15 +8,14 @@ import static org.mockito.Mockito.when;
 
 import br.com.fintrackapi.domain.BankAccount;
 import br.com.fintrackapi.domain.Category;
-import br.com.fintrackapi.domain.RecurrenceType;
 import br.com.fintrackapi.domain.Transaction;
-import br.com.fintrackapi.domain.TransactionKind;
 import br.com.fintrackapi.domain.TransactionTemplate;
-import br.com.fintrackapi.domain.IntervalUnit;
+import br.com.fintrackapi.domain.enums.IntervalUnit;
+import br.com.fintrackapi.domain.enums.RecurrenceType;
+import br.com.fintrackapi.domain.enums.TransactionKind;
 import br.com.fintrackapi.repository.TransactionRepository;
 import br.com.fintrackapi.repository.TransactionTemplateRepository;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,7 +50,6 @@ class TemplateOccurrenceGeneratorTest {
                 .totalOccurrences(3)
                 .occurrencesGenerated(0)
                 .active(true)
-                .createdAt(Instant.now())
                 .build();
 
         generator.generateInitialOccurrences(template);
@@ -93,7 +91,6 @@ class TemplateOccurrenceGeneratorTest {
                 .totalOccurrences(2)
                 .occurrencesGenerated(0)
                 .active(true)
-                .createdAt(Instant.now())
                 .build();
 
         generator.generateInitialOccurrences(template);

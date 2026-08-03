@@ -1,7 +1,7 @@
 package br.com.fintrackapi.dto;
 
-import br.com.fintrackapi.domain.RecurrenceType;
-import br.com.fintrackapi.domain.TransactionKind;
+import br.com.fintrackapi.domain.enums.RecurrenceType;
+import br.com.fintrackapi.domain.enums.TransactionKind;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -18,5 +18,4 @@ public record TransactionTemplateRequest(
         @NotNull @Positive BigDecimal totalAmount,
         @NotNull RecurrenceType recurrenceType,
         @NotNull LocalDate startDate,
-        Integer totalOccurrences) {
-}
+        Integer totalOccurrences) {}

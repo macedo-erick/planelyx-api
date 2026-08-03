@@ -3,16 +3,16 @@ package br.com.fintrackapi;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import br.com.fintrackapi.domain.AccountType;
 import br.com.fintrackapi.domain.BankAccount;
 import br.com.fintrackapi.domain.Category;
-import br.com.fintrackapi.domain.CategoryType;
 import br.com.fintrackapi.domain.CreditCard;
 import br.com.fintrackapi.domain.Invoice;
-import br.com.fintrackapi.domain.InvoiceStatus;
-import br.com.fintrackapi.domain.RecurrenceType;
 import br.com.fintrackapi.domain.Transaction;
-import br.com.fintrackapi.domain.TransactionKind;
+import br.com.fintrackapi.domain.enums.AccountType;
+import br.com.fintrackapi.domain.enums.CategoryType;
+import br.com.fintrackapi.domain.enums.InvoiceStatus;
+import br.com.fintrackapi.domain.enums.RecurrenceType;
+import br.com.fintrackapi.domain.enums.TransactionKind;
 import br.com.fintrackapi.dto.BankAccountRequest;
 import br.com.fintrackapi.dto.CategoryRequest;
 import br.com.fintrackapi.dto.CreditCardRequest;
@@ -55,14 +55,14 @@ class FullFlowIntegrationTest extends AbstractIntegrationTest {
         UUID ownerId = UUID.randomUUID();
 
         BankAccount account = bankAccountService.create(
-                new BankAccountRequest("Checking", "Test Bank", AccountType.CHECKING, BigDecimal.TEN, "BRL"),
-                ownerId);
+                new BankAccountRequest("Checking", "Test Bank", AccountType.CHECKING, BigDecimal.TEN, "BRL"), ownerId);
 
         CreditCard card = creditCardService.create(
                 new CreditCardRequest(account.getId(), "Gold Card", "VISA", new BigDecimal("5000.00"), 10, 17),
                 ownerId);
 
-        Category category = categoryService.create(new CategoryRequest("Electronics", CategoryType.EXPENSE, null, null), ownerId);
+        Category category =
+                categoryService.create(new CategoryRequest("Electronics", CategoryType.EXPENSE, null, null), ownerId);
 
         transactionTemplateService.create(
                 new TransactionTemplateRequest(

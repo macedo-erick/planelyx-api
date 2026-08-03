@@ -1,7 +1,7 @@
 package br.com.fintrackapi.repository;
 
-import br.com.fintrackapi.domain.RecurrenceType;
 import br.com.fintrackapi.domain.TransactionTemplate;
+import br.com.fintrackapi.domain.enums.RecurrenceType;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

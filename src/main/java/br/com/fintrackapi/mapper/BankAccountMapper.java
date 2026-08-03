@@ -5,8 +5,7 @@ import br.com.fintrackapi.dto.BankAccountResponse;
 
 public final class BankAccountMapper {
 
-    private BankAccountMapper() {
-    }
+    private BankAccountMapper() {}
 
     public static BankAccountResponse toResponse(BankAccount account) {
         return new BankAccountResponse(

@@ -1,20 +1,22 @@
 package br.com.fintrackapi.service;
 
 import br.com.fintrackapi.domain.Category;
-import br.com.fintrackapi.domain.IntervalUnit;
-import br.com.fintrackapi.domain.TransactionKind;
 import br.com.fintrackapi.domain.TransactionTemplate;
+import br.com.fintrackapi.domain.enums.IntervalUnit;
+import br.com.fintrackapi.domain.enums.TransactionKind;
 import br.com.fintrackapi.dto.TransactionTemplateRequest;
 import br.com.fintrackapi.exception.NotFoundException;
 import br.com.fintrackapi.repository.TransactionTemplateRepository;
-import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class TransactionTemplateService {
 
     private final TransactionTemplateRepository transactionTemplateRepository;
@@ -22,19 +24,6 @@ public class TransactionTemplateService {
     private final CreditCardService creditCardService;
     private final CategoryService categoryService;
     private final TemplateOccurrenceGenerator occurrenceGenerator;
-
-    public TransactionTemplateService(
-            TransactionTemplateRepository transactionTemplateRepository,
-            BankAccountService bankAccountService,
-            CreditCardService creditCardService,
-            CategoryService categoryService,
-            TemplateOccurrenceGenerator occurrenceGenerator) {
-        this.transactionTemplateRepository = transactionTemplateRepository;
-        this.bankAccountService = bankAccountService;
-        this.creditCardService = creditCardService;
-        this.categoryService = categoryService;
-        this.occurrenceGenerator = occurrenceGenerator;
-    }
 
     public List<TransactionTemplate> findAll(UUID ownerId) {
         return transactionTemplateRepository.findAllByOwnerId(ownerId);
@@ -62,8 +51,7 @@ public class TransactionTemplateService {
                 .startDate(request.startDate())
                 .totalOccurrences(request.totalOccurrences())
                 .occurrencesGenerated(0)
-                .active(true)
-                .createdAt(Instant.now());
+                .active(true);
 
         if (request.kind() == TransactionKind.CARD_CHARGE) {
             builder.creditCard(creditCardService.findById(request.creditCardId(), ownerId));
@@ -72,7 +60,9 @@ public class TransactionTemplateService {
         }
 
         TransactionTemplate template = transactionTemplateRepository.save(builder.build());
+
         occurrenceGenerator.generateInitialOccurrences(template);
+
         return template;
     }
 
@@ -88,17 +78,18 @@ public class TransactionTemplateService {
                 if (request.kind() != TransactionKind.CARD_CHARGE) {
                     throw new IllegalArgumentException("Installments are only supported for card charges");
                 }
-                if (request.totalOccurrences() == null || request.totalOccurrences() < 2) {
+
+                if (Objects.isNull(request.totalOccurrences()) || request.totalOccurrences() < 2) {
                     throw new IllegalArgumentException("Installments require totalOccurrences >= 2");
                 }
             }
             case FIXED_COUNT -> {
-                if (request.totalOccurrences() == null || request.totalOccurrences() < 1) {
+                if (Objects.isNull(request.totalOccurrences()) || request.totalOccurrences() < 1) {
                     throw new IllegalArgumentException("Fixed-count recurrence requires a positive totalOccurrences");
                 }
             }
             case FIXED_INDEFINITE -> {
-                if (request.totalOccurrences() != null) {
+                if (Objects.nonNull(request.totalOccurrences())) {
                     throw new IllegalArgumentException("Indefinite recurrence must not set totalOccurrences");
                 }
             }

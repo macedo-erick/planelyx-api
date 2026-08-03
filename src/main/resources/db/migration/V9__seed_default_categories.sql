@@ -1,0 +1,20 @@
+-- owner_id NULL marks a system-wide default category, visible to every user.
+INSERT INTO category (id, owner_id, name, type, icon, color) VALUES
+    (gen_random_uuid(), NULL, 'Groceries', 'EXPENSE', 'fa-cart-shopping', '#22c55e'),
+    (gen_random_uuid(), NULL, 'Housing', 'EXPENSE', 'fa-house', '#f97316'),
+    (gen_random_uuid(), NULL, 'Utilities', 'EXPENSE', 'fa-bolt', '#eab308'),
+    (gen_random_uuid(), NULL, 'Transportation', 'EXPENSE', 'fa-car', '#3b82f6'),
+    (gen_random_uuid(), NULL, 'Dining Out', 'EXPENSE', 'fa-utensils', '#ef4444'),
+    (gen_random_uuid(), NULL, 'Health', 'EXPENSE', 'fa-briefcase-medical', '#ec4899'),
+    (gen_random_uuid(), NULL, 'Entertainment', 'EXPENSE', 'fa-film', '#a855f7'),
+    (gen_random_uuid(), NULL, 'Shopping', 'EXPENSE', 'fa-bag-shopping', '#14b8a6'),
+    (gen_random_uuid(), NULL, 'Education', 'EXPENSE', 'fa-graduation-cap', '#0ea5e9'),
+    (gen_random_uuid(), NULL, 'Subscriptions', 'EXPENSE', 'fa-repeat', '#6366f1'),
+    (gen_random_uuid(), NULL, 'Travel', 'EXPENSE', 'fa-plane', '#06b6d4'),
+    (gen_random_uuid(), NULL, 'Insurance', 'EXPENSE', 'fa-shield-halved', '#64748b'),
+    (gen_random_uuid(), NULL, 'Other Expense', 'EXPENSE', 'fa-ellipsis', '#94a3b8'),
+    (gen_random_uuid(), NULL, 'Salary', 'INCOME', 'fa-money-bill-wave', '#16a34a'),
+    (gen_random_uuid(), NULL, 'Freelance', 'INCOME', 'fa-laptop-code', '#0d9488'),
+    (gen_random_uuid(), NULL, 'Investments', 'INCOME', 'fa-chart-line', '#65a30d'),
+    (gen_random_uuid(), NULL, 'Gifts', 'INCOME', 'fa-gift', '#db2777'),
+    (gen_random_uuid(), NULL, 'Other Income', 'INCOME', 'fa-ellipsis', '#94a3b8');

@@ -10,7 +10,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,7 +24,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CreditCard {
+public class CreditCard extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -55,7 +54,4 @@ public class CreditCard {
 
     @Column(nullable = false)
     private boolean active;
-
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
 }

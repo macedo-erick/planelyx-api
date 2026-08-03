@@ -5,8 +5,7 @@ import br.com.fintrackapi.dto.CategoryResponse;
 
 public final class CategoryMapper {
 
-    private CategoryMapper() {
-    }
+    private CategoryMapper() {}
 
     public static CategoryResponse toResponse(Category category) {
         return new CategoryResponse(

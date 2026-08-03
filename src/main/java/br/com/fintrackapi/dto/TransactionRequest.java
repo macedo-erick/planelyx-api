@@ -1,6 +1,6 @@
 package br.com.fintrackapi.dto;
 
-import br.com.fintrackapi.domain.TransactionKind;
+import br.com.fintrackapi.domain.enums.TransactionKind;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -15,5 +15,4 @@ public record TransactionRequest(
         @NotNull UUID categoryId,
         @NotNull @Positive BigDecimal amount,
         @NotNull LocalDate transactionDate,
-        @NotBlank String description) {
-}
+        @NotBlank String description) {}

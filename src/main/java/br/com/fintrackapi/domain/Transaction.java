@@ -1,5 +1,6 @@
 package br.com.fintrackapi.domain;
 
+import br.com.fintrackapi.domain.enums.TransactionKind;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -12,7 +13,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -28,7 +28,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Transaction {
+public class Transaction extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -75,7 +75,4 @@ public class Transaction {
 
     @Column(nullable = false)
     private boolean paid;
-
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
 }

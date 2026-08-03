@@ -13,5 +13,4 @@ public record CreditCardRequest(
         @NotBlank String brand,
         @NotNull BigDecimal creditLimit,
         @Min(1) @Max(31) int closingDay,
-        @Min(1) @Max(31) int dueDay) {
-}
+        @Min(1) @Max(31) int dueDay) {}

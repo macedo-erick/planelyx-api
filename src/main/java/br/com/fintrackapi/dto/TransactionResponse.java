@@ -1,6 +1,6 @@
 package br.com.fintrackapi.dto;
 
-import br.com.fintrackapi.domain.TransactionKind;
+import br.com.fintrackapi.domain.enums.TransactionKind;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -19,5 +19,4 @@ public record TransactionResponse(
         LocalDate transactionDate,
         String description,
         boolean paid,
-        Instant createdAt) {
-}
+        Instant createdAt) {}

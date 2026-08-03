@@ -1,5 +1,6 @@
 package br.com.fintrackapi.domain;
 
+import br.com.fintrackapi.domain.enums.CategoryType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -8,7 +9,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.time.Instant;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,13 +23,16 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Category {
+public class Category extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "owner_id", nullable = false)
+    /**
+     * Null means this is a system-wide default category, visible to every user.
+     */
+    @Column(name = "owner_id")
     private UUID ownerId;
 
     @Column(nullable = false)
@@ -42,7 +45,4 @@ public class Category {
     private String icon;
 
     private String color;
-
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
 }

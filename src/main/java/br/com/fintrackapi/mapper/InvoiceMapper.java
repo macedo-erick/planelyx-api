@@ -1,16 +1,15 @@
 package br.com.fintrackapi.mapper;
 
 import br.com.fintrackapi.domain.Invoice;
-import br.com.fintrackapi.domain.InvoiceStatus;
 import br.com.fintrackapi.domain.Transaction;
+import br.com.fintrackapi.domain.enums.InvoiceStatus;
 import br.com.fintrackapi.dto.InvoiceDetailResponse;
 import br.com.fintrackapi.dto.InvoiceResponse;
 import java.util.List;
 
 public final class InvoiceMapper {
 
-    private InvoiceMapper() {
-    }
+    private InvoiceMapper() {}
 
     public static InvoiceResponse toResponse(Invoice invoice, InvoiceStatus derivedStatus) {
         return new InvoiceResponse(

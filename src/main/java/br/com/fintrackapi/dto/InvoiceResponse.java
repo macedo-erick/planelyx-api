@@ -1,6 +1,6 @@
 package br.com.fintrackapi.dto;
 
-import br.com.fintrackapi.domain.InvoiceStatus;
+import br.com.fintrackapi.domain.enums.InvoiceStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -15,5 +15,4 @@ public record InvoiceResponse(
         BigDecimal totalAmount,
         InvoiceStatus status,
         Instant paidAt,
-        Instant createdAt) {
-}
+        Instant createdAt) {}

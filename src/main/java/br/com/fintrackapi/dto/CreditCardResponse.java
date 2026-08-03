@@ -13,5 +13,4 @@ public record CreditCardResponse(
         int closingDay,
         int dueDay,
         boolean active,
-        Instant createdAt) {
-}
+        Instant createdAt) {}

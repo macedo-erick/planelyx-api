@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -24,15 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/transactions")
+@RequiredArgsConstructor
 public class TransactionController {
 
     private final TransactionService transactionService;
     private final CurrentUser currentUser;
-
-    public TransactionController(TransactionService transactionService, CurrentUser currentUser) {
-        this.transactionService = transactionService;
-        this.currentUser = currentUser;
-    }
 
     @GetMapping
     public List<TransactionResponse> findAll(
@@ -57,6 +54,7 @@ public class TransactionController {
     public ResponseEntity<TransactionResponse> create(@Valid @RequestBody TransactionRequest request) {
         TransactionResponse response =
                 TransactionMapper.toResponse(transactionService.create(request, currentUser.ownerId()));
+
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -68,6 +66,7 @@ public class TransactionController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         transactionService.delete(id, currentUser.ownerId());
+
         return ResponseEntity.noContent().build();
     }
 }

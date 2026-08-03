@@ -4,28 +4,40 @@ import br.com.fintrackapi.domain.Category;
 import br.com.fintrackapi.dto.CategoryRequest;
 import br.com.fintrackapi.exception.NotFoundException;
 import br.com.fintrackapi.repository.CategoryRepository;
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
 
-    public CategoryService(CategoryRepository categoryRepository) {
-        this.categoryRepository = categoryRepository;
-    }
-
     public List<Category> findAll(UUID ownerId) {
-        return categoryRepository.findAllByOwnerId(ownerId);
+        return categoryRepository.findAllVisibleToOwner(ownerId);
     }
 
+    /**
+     * Looks up a category the owner may reference (their own, or a default/global one).
+     * Use this when validating a category id supplied on a transaction or template.
+     */
     public Category findById(UUID id, UUID ownerId) {
-        return categoryRepository.findByIdAndOwnerId(id, ownerId)
+        return categoryRepository
+                .findVisibleByIdAndOwner(id, ownerId)
+                .orElseThrow(() -> new NotFoundException("Category not found: " + id));
+    }
+
+    /**
+     * Looks up a category strictly owned by the caller. Default/global categories are not
+     * returned here since they cannot be edited or deleted by users.
+     */
+    private Category findOwnedById(UUID id, UUID ownerId) {
+        return categoryRepository
+                .findByIdAndOwnerId(id, ownerId)
                 .orElseThrow(() -> new NotFoundException("Category not found: " + id));
     }
 
@@ -36,22 +48,25 @@ public class CategoryService {
                 .type(request.type())
                 .icon(request.icon())
                 .color(request.color())
-                .createdAt(Instant.now())
                 .build();
+
         return categoryRepository.save(category);
     }
 
     public Category update(UUID id, CategoryRequest request, UUID ownerId) {
-        Category category = findById(id, ownerId);
+        Category category = findOwnedById(id, ownerId);
+
         category.setName(request.name());
         category.setType(request.type());
         category.setIcon(request.icon());
         category.setColor(request.color());
+
         return categoryRepository.save(category);
     }
 
     public void delete(UUID id, UUID ownerId) {
-        Category category = findById(id, ownerId);
+        Category category = findOwnedById(id, ownerId);
+
         categoryRepository.delete(category);
     }
 }

@@ -1,0 +1,1 @@
+ALTER TABLE category ALTER COLUMN owner_id DROP NOT NULL;

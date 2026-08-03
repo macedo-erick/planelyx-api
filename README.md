@@ -93,6 +93,19 @@ OpenAPI JSON: http://localhost:8080/v3/api-docs
 Tests use Testcontainers to run against a real PostgreSQL instance (Flyway migrations included) — no
 external services need to be running; Docker is required.
 
+## Code style
+
+Formatting (import order, indentation, brace style) is enforced with [Spotless](https://github.com/diffplug/spotless)
+using `palantir-java-format`, wired into the `check` task.
+
+```bash
+./gradlew spotlessApply   # auto-fix formatting
+./gradlew spotlessCheck   # verify formatting (runs as part of ./gradlew check)
+```
+
+Blank lines before `return` statements and around `if`/`else` blocks are a manual convention (no formatter
+enforces statement-level spacing like this) — please follow it when adding new code.
+
 ## Docker image
 
 The `Dockerfile` is multi-stage:

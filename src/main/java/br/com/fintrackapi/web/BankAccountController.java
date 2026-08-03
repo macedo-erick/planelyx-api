@@ -8,6 +8,7 @@ import br.com.fintrackapi.service.BankAccountService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,15 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/bank-accounts")
+@RequiredArgsConstructor
 public class BankAccountController {
 
     private final BankAccountService bankAccountService;
     private final CurrentUser currentUser;
-
-    public BankAccountController(BankAccountService bankAccountService, CurrentUser currentUser) {
-        this.bankAccountService = bankAccountService;
-        this.currentUser = currentUser;
-    }
 
     @GetMapping
     public List<BankAccountResponse> findAll() {
@@ -47,6 +44,7 @@ public class BankAccountController {
     public ResponseEntity<BankAccountResponse> create(@Valid @RequestBody BankAccountRequest request) {
         BankAccountResponse response =
                 BankAccountMapper.toResponse(bankAccountService.create(request, currentUser.ownerId()));
+
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -58,6 +56,7 @@ public class BankAccountController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         bankAccountService.delete(id, currentUser.ownerId());
+
         return ResponseEntity.noContent().build();
     }
 }

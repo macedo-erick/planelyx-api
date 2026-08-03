@@ -1,5 +1,6 @@
 package br.com.fintrackapi.domain;
 
+import br.com.fintrackapi.domain.enums.AccountType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -9,7 +10,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,7 +24,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BankAccount {
+public class BankAccount extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -51,7 +51,4 @@ public class BankAccount {
 
     @Column(nullable = false)
     private boolean active;
-
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
 }

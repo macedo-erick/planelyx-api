@@ -1,6 +1,6 @@
 package br.com.fintrackapi.dto;
 
-import br.com.fintrackapi.domain.AccountType;
+import br.com.fintrackapi.domain.enums.AccountType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -13,5 +13,4 @@ public record BankAccountResponse(
         BigDecimal initialBalance,
         String currency,
         boolean active,
-        Instant createdAt) {
-}
+        Instant createdAt) {}

@@ -8,6 +8,7 @@ import br.com.fintrackapi.service.CategoryService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,15 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/categories")
+@RequiredArgsConstructor
 public class CategoryController {
 
     private final CategoryService categoryService;
     private final CurrentUser currentUser;
-
-    public CategoryController(CategoryService categoryService, CurrentUser currentUser) {
-        this.categoryService = categoryService;
-        this.currentUser = currentUser;
-    }
 
     @GetMapping
     public List<CategoryResponse> findAll() {
@@ -46,6 +43,7 @@ public class CategoryController {
     @PostMapping
     public ResponseEntity<CategoryResponse> create(@Valid @RequestBody CategoryRequest request) {
         CategoryResponse response = CategoryMapper.toResponse(categoryService.create(request, currentUser.ownerId()));
+
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -57,6 +55,7 @@ public class CategoryController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         categoryService.delete(id, currentUser.ownerId());
+
         return ResponseEntity.noContent().build();
     }
 }

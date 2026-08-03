@@ -11,5 +11,4 @@ public record TransactionUpdateRequest(
         @NotNull UUID categoryId,
         @NotNull @Positive BigDecimal amount,
         @NotNull LocalDate transactionDate,
-        @NotBlank String description) {
-}
+        @NotBlank String description) {}

@@ -2,10 +2,9 @@ package br.com.fintrackapi.repository;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import br.com.fintrackapi.domain.AccountType;
 import br.com.fintrackapi.domain.BankAccount;
+import br.com.fintrackapi.domain.enums.AccountType;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -40,7 +39,6 @@ class BankAccountRepositoryTest {
                 .initialBalance(BigDecimal.TEN)
                 .currency("BRL")
                 .active(true)
-                .createdAt(Instant.now())
                 .build();
 
         bankAccountRepository.save(account);

@@ -5,8 +5,7 @@ import br.com.fintrackapi.dto.CreditCardResponse;
 
 public final class CreditCardMapper {
 
-    private CreditCardMapper() {
-    }
+    private CreditCardMapper() {}
 
     public static CreditCardResponse toResponse(CreditCard card) {
         return new CreditCardResponse(

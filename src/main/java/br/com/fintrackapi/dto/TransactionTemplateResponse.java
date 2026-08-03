@@ -1,8 +1,8 @@
 package br.com.fintrackapi.dto;
 
-import br.com.fintrackapi.domain.IntervalUnit;
-import br.com.fintrackapi.domain.RecurrenceType;
-import br.com.fintrackapi.domain.TransactionKind;
+import br.com.fintrackapi.domain.enums.IntervalUnit;
+import br.com.fintrackapi.domain.enums.RecurrenceType;
+import br.com.fintrackapi.domain.enums.TransactionKind;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -22,5 +22,4 @@ public record TransactionTemplateResponse(
         Integer totalOccurrences,
         int occurrencesGenerated,
         boolean active,
-        Instant createdAt) {
-}
+        Instant createdAt) {}
