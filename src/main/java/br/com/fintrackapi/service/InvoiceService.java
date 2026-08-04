@@ -14,8 +14,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -114,6 +116,18 @@ public class InvoiceService {
 
     public List<Transaction> transactionsFor(UUID invoiceId) {
         return transactionRepository.findAllByInvoiceId(invoiceId);
+    }
+
+    /** Total still owed on a card — everything invoiced but not yet paid. */
+    public BigDecimal unpaidTotal(UUID creditCardId) {
+        return invoiceRepository.sumUnpaidTotalByCreditCardId(creditCardId);
+    }
+
+    /** The same figure for every card an owner holds. Cards with nothing outstanding are absent. */
+    public Map<UUID, BigDecimal> unpaidTotalsByCard(UUID ownerId) {
+        return invoiceRepository.sumUnpaidTotalsByOwnerId(ownerId).stream()
+                .collect(Collectors.toMap(
+                        InvoiceRepository.CardTotal::getCreditCardId, InvoiceRepository.CardTotal::getTotal));
     }
 
     public Invoice pay(UUID id, UUID ownerId) {

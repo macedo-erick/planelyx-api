@@ -10,6 +10,10 @@ public record CreditCardResponse(
         String name,
         String brand,
         BigDecimal creditLimit,
+        /** Sum of the card's invoices that have not been paid yet. */
+        BigDecimal usedLimit,
+        /** {@code creditLimit - usedLimit}. Goes negative once the card is over its limit. */
+        BigDecimal availableLimit,
         int closingDay,
         int dueDay,
         boolean active,

@@ -5,8 +5,11 @@ import br.com.fintrackapi.dto.CreditCardResponse;
 import br.com.fintrackapi.mapper.CreditCardMapper;
 import br.com.fintrackapi.security.CurrentUser;
 import br.com.fintrackapi.service.CreditCardService;
+import br.com.fintrackapi.service.InvoiceService;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,31 +29,37 @@ import org.springframework.web.bind.annotation.RestController;
 public class CreditCardController {
 
     private final CreditCardService creditCardService;
+    private final InvoiceService invoiceService;
     private final CurrentUser currentUser;
 
     @GetMapping
     public List<CreditCardResponse> findAll() {
-        return creditCardService.findAll(currentUser.ownerId()).stream()
-                .map(CreditCardMapper::toResponse)
+        UUID ownerId = currentUser.ownerId();
+        Map<UUID, BigDecimal> usedLimits = invoiceService.unpaidTotalsByCard(ownerId);
+
+        return creditCardService.findAll(ownerId).stream()
+                .map(card -> CreditCardMapper.toResponse(card, usedLimits.getOrDefault(card.getId(), BigDecimal.ZERO)))
                 .toList();
     }
 
     @GetMapping("/{id}")
     public CreditCardResponse findById(@PathVariable UUID id) {
-        return CreditCardMapper.toResponse(creditCardService.findById(id, currentUser.ownerId()));
+        return CreditCardMapper.toResponse(
+                creditCardService.findById(id, currentUser.ownerId()), invoiceService.unpaidTotal(id));
     }
 
     @PostMapping
     public ResponseEntity<CreditCardResponse> create(@Valid @RequestBody CreditCardRequest request) {
         CreditCardResponse response =
-                CreditCardMapper.toResponse(creditCardService.create(request, currentUser.ownerId()));
+                CreditCardMapper.toResponse(creditCardService.create(request, currentUser.ownerId()), BigDecimal.ZERO);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/{id}")
     public CreditCardResponse update(@PathVariable UUID id, @Valid @RequestBody CreditCardRequest request) {
-        return CreditCardMapper.toResponse(creditCardService.update(id, request, currentUser.ownerId()));
+        return CreditCardMapper.toResponse(
+                creditCardService.update(id, request, currentUser.ownerId()), invoiceService.unpaidTotal(id));
     }
 
     @DeleteMapping("/{id}")
