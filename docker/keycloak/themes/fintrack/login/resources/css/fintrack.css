@@ -111,6 +111,14 @@
  * Page shell
  * ------------------------------------------------------------------ */
 
+/* Removes the browser's default 8px body margin, which — combined with the
+   shell's `min-height: 100vh` below — made the document taller than the
+   viewport and produced a permanent, unnecessary vertical scrollbar. */
+html,
+body#keycloak-bg {
+  margin: 0;
+}
+
 body#keycloak-bg {
   color: var(--ft-text);
   font-family: var(--ft-font);
@@ -238,28 +246,21 @@ body#keycloak-bg {
   .ft-auth-panel {
     min-height: 100vh;
   }
-
-  /* The aside's CTA (register/sign-in link) is hidden along with it, so the
-     page's own copy of that link needs to come back for mobile visitors. */
-  #kc-registration-container,
-  #kc-form-options {
-    display: block;
-  }
-
-  #kc-reset-password-form .pf-v5-c-button.pf-m-secondary {
-    display: inline-flex;
-  }
 }
 
 /* The realm's displayNameHtml renders here as a small wordmark above the
    page title — deliberately understated since the aside panel carries the
    bulk of the branding. */
-.pf-v5-c-login__header .pf-v5-c-brand {
+#kc-header-wrapper.pf-v5-c-brand {
   margin-bottom: 2rem;
-  color: var(--ft-text-muted);
-  font-size: 1rem;
+  color: var(--ft-text-muted) !important;
+  font-size: 2rem;
   font-weight: 700;
   letter-spacing: -0.01em;
+}
+
+#kc-header-wrapper.pf-v5-c-brand * {
+  color: inherit !important;
 }
 
 .pf-v5-c-login__container {
@@ -321,6 +322,18 @@ body#keycloak-bg {
   padding-block: 0.85rem;
 }
 
+/* Password field + visibility-toggle button: PatternFly joins input-group
+   items flush (negative margin so borders overlap), which reads as too
+   tight now that the field is a filled, borderless box. Add a small gap and
+   cancel that overlap. */
+.pf-v5-c-input-group {
+  gap: 0.5rem;
+}
+
+.pf-v5-c-input-group > .pf-v5-c-input-group__item:not(:first-child) {
+  margin-inline-start: 0;
+}
+
 .pf-v5-c-form__label-text {
   color: var(--ft-text-muted);
   font-size: 0.8rem;
@@ -356,7 +369,7 @@ body#keycloak-bg {
 /* On wide screens the aside panel's CTA already covers "no account yet? /
    already have one?", so the page's own copy of that link would be
    redundant. It's hidden here and restored (as `block`/`inline-flex`) in
-   the mobile media query above once the aside disappears. */
+   the mobile media query below once the aside disappears. */
 #kc-registration-container,
 #kc-form-options {
   display: none;
@@ -364,6 +377,26 @@ body#keycloak-bg {
 
 #kc-reset-password-form .pf-v5-c-button.pf-m-secondary {
   display: none;
+}
+
+/* Mobile-only overrides for the two rules above. Kept below them (rather
+   than inside the earlier `@media (max-width: 900px)` block) so it actually
+   wins the cascade: two rules of equal (ID) specificity resolve by source
+   order regardless of which one sits inside a media query, so a later
+   unconditional rule always beats an earlier media-gated one. Previously
+   this order was reversed, which made the sign-up and back-to-sign-in links
+   vanish on mobile even though the media query "restored" them. */
+@media (max-width: 900px) {
+  /* The aside's CTA (register/sign-in link) is hidden along with it, so the
+     page's own copy of that link needs to come back for mobile visitors. */
+  #kc-registration-container,
+  #kc-form-options {
+    display: block;
+  }
+
+  #kc-reset-password-form .pf-v5-c-button.pf-m-secondary {
+    display: inline-flex;
+  }
 }
 
 /* ------------------------------------------------------------------ *
