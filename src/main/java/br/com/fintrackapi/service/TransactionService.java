@@ -36,9 +36,6 @@ public class TransactionService {
             UUID ownerId, UUID bankAccountId, UUID creditCardId, UUID categoryId, LocalDate from, LocalDate to) {
         Specification<Transaction> spec = (root, query, cb) -> cb.equal(root.get("ownerId"), ownerId);
 
-        // Fetch the lazy template association eagerly: open-in-view is disabled, so mappers
-        // reading template fields outside the transactional boundary would otherwise hit a
-        // LazyInitializationException.
         spec = spec.and((root, query, cb) -> {
             root.fetch("template", JoinType.LEFT);
             return cb.conjunction();

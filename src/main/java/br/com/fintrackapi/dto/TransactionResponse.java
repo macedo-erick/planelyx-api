@@ -15,6 +15,7 @@ public record TransactionResponse(
         UUID invoiceId,
         UUID templateId,
         Integer installmentNumber,
+        Integer totalInstallments,
         BigDecimal amount,
         LocalDate transactionDate,
         String description,
