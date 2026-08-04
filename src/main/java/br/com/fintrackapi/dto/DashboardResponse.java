@@ -16,7 +16,16 @@ public record DashboardResponse(
         LocalDate periodStart,
         LocalDate periodEnd,
         List<AccountBalance> accountBalances,
+        /**
+         * What the accounts are expected to be worth by {@code periodEnd}: the sum of
+         * {@code accountBalances} less {@code invoicesDueTotal}. It deliberately does not match
+         * that sum — a card invoice is money already committed but not yet taken out of any one
+         * account, so it is deducted from the total only.
+         */
         BigDecimal totalBalance,
+        /** Unpaid invoices falling due on or before {@code periodEnd}, already deducted above. */
+        BigDecimal invoicesDueTotal,
+        int invoicesDueCount,
         BigDecimal income,
         BigDecimal expense,
         List<CategoryBreakdown> categoryBreakdown,

@@ -53,18 +53,36 @@ public class DashboardService {
         List<TransactionRepository.KindTotal> movement =
                 transactionRepository.sumByKindBetween(ownerId, periodStart, periodEnd);
         List<Invoice> unpaid = unpaid(ownerId);
+        List<Invoice> due = dueThrough(unpaid, periodEnd);
+        BigDecimal dueTotal = total(due);
 
         return new DashboardResponse(
                 periodStart,
                 periodEnd,
                 balances,
-                totalBalance(balances),
+                totalBalance(balances).subtract(dueTotal),
+                dueTotal,
+                due.size(),
                 income(movement),
                 expense(movement),
                 categoryBreakdown(ownerId, periodStart, periodEnd),
-                outstandingInvoiceTotal(unpaid),
+                total(unpaid),
                 upcomingInvoices(unpaid),
                 beyondGeneratedOccurrences(ownerId, periodEnd));
+    }
+
+    /**
+     * The unpaid invoices a forecast to {@code asOf} has to account for.
+     *
+     * Paying an invoice only flips its status — it never posts a debit — so a card charge would
+     * otherwise be invisible to every balance the app shows. Deducting the invoices already due
+     * by the end of the month is what stops a card-heavy month from reading as though nothing
+     * were owed. Ones falling due later are left alone: they are not this month's problem.
+     */
+    private List<Invoice> dueThrough(List<Invoice> unpaid, LocalDate asOf) {
+        return unpaid.stream()
+                .filter(invoice -> !invoice.getDueDate().isAfter(asOf))
+                .toList();
     }
 
     /**
@@ -136,8 +154,8 @@ public class DashboardService {
                 .toList();
     }
 
-    private BigDecimal outstandingInvoiceTotal(List<Invoice> unpaid) {
-        return unpaid.stream().map(Invoice::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+    private BigDecimal total(List<Invoice> invoices) {
+        return invoices.stream().map(Invoice::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private List<InvoiceResponse> upcomingInvoices(List<Invoice> unpaid) {
