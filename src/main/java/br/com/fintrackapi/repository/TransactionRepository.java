@@ -18,6 +18,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID>,
     @EntityGraph(attributePaths = "template")
     Optional<Transaction> findByIdAndOwnerId(UUID id, UUID ownerId);
 
+    @EntityGraph(attributePaths = "template")
     List<Transaction> findAllByInvoiceId(UUID invoiceId);
 
     List<Transaction> findAllByTemplateId(UUID templateId);

@@ -16,7 +16,9 @@ import br.com.fintrackapi.domain.enums.TransactionKind;
 import br.com.fintrackapi.dto.BankAccountRequest;
 import br.com.fintrackapi.dto.CategoryRequest;
 import br.com.fintrackapi.dto.CreditCardRequest;
+import br.com.fintrackapi.dto.InvoiceDetailResponse;
 import br.com.fintrackapi.dto.TransactionTemplateRequest;
+import br.com.fintrackapi.mapper.InvoiceMapper;
 import br.com.fintrackapi.repository.TransactionRepository;
 import br.com.fintrackapi.service.BankAccountService;
 import br.com.fintrackapi.service.CategoryService;
@@ -101,5 +103,46 @@ class FullFlowIntegrationTest extends AbstractIntegrationTest {
         Invoice firstInvoice = invoices.getFirst();
         InvoiceStatus derived = invoiceService.derivedStatus(firstInvoice);
         assertEquals(true, derived == InvoiceStatus.CLOSED || derived == InvoiceStatus.OPEN);
+    }
+
+    @Test
+    void invoiceDetailMappingDoesNotFailOnLazyTemplateAssociation() {
+        // Mirrors what InvoiceController#findById does: fetch the invoice and its transactions in
+        // separate @Transactional service calls, then map them outside any transaction. Each
+        // transaction linked to an installment template holds a lazy TransactionTemplate proxy
+        // that must not require an open Hibernate session to serialize.
+        UUID ownerId = UUID.randomUUID();
+
+        BankAccount account = bankAccountService.create(
+                new BankAccountRequest("Checking", "Test Bank", AccountType.CHECKING, BigDecimal.TEN, "BRL"), ownerId);
+
+        CreditCard card = creditCardService.create(
+                new CreditCardRequest(account.getId(), "Gold Card", "VISA", new BigDecimal("5000.00"), 10, 17),
+                ownerId);
+
+        Category category =
+                categoryService.create(new CategoryRequest("Electronics", CategoryType.EXPENSE, null, null), ownerId);
+
+        transactionTemplateService.create(
+                new TransactionTemplateRequest(
+                        TransactionKind.CARD_CHARGE,
+                        null,
+                        card.getId(),
+                        category.getId(),
+                        "New laptop",
+                        new BigDecimal("300.00"),
+                        RecurrenceType.INSTALLMENT,
+                        LocalDate.of(2026, 8, 15),
+                        3),
+                ownerId);
+
+        List<Invoice> invoices = invoiceService.findAll(ownerId, card.getId(), null);
+        Invoice invoice = invoices.getFirst();
+
+        InvoiceDetailResponse response = InvoiceMapper.toDetailResponse(
+                invoice, invoiceService.derivedStatus(invoice), invoiceService.transactionsFor(invoice.getId()));
+
+        assertEquals(1, response.transactions().size());
+        assertEquals(3, response.transactions().getFirst().totalInstallments());
     }
 }
