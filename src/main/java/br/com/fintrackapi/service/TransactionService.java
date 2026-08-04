@@ -12,6 +12,7 @@ import br.com.fintrackapi.dto.TransactionRequest;
 import br.com.fintrackapi.dto.TransactionUpdateRequest;
 import br.com.fintrackapi.exception.NotFoundException;
 import br.com.fintrackapi.repository.TransactionRepository;
+import jakarta.persistence.criteria.JoinType;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -34,6 +35,14 @@ public class TransactionService {
     public List<Transaction> findAll(
             UUID ownerId, UUID bankAccountId, UUID creditCardId, UUID categoryId, LocalDate from, LocalDate to) {
         Specification<Transaction> spec = (root, query, cb) -> cb.equal(root.get("ownerId"), ownerId);
+
+        // Fetch the lazy template association eagerly: open-in-view is disabled, so mappers
+        // reading template fields outside the transactional boundary would otherwise hit a
+        // LazyInitializationException.
+        spec = spec.and((root, query, cb) -> {
+            root.fetch("template", JoinType.LEFT);
+            return cb.conjunction();
+        });
 
         if (nonNull(bankAccountId)) {
             spec = spec.and(
