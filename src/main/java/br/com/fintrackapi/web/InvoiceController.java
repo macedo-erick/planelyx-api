@@ -2,14 +2,18 @@ package br.com.fintrackapi.web;
 
 import br.com.fintrackapi.domain.Invoice;
 import br.com.fintrackapi.domain.enums.InvoiceStatus;
-import br.com.fintrackapi.dto.InvoiceDetailResponse;
 import br.com.fintrackapi.dto.InvoiceResponse;
+import br.com.fintrackapi.dto.PageResponse;
+import br.com.fintrackapi.dto.TransactionResponse;
 import br.com.fintrackapi.mapper.InvoiceMapper;
+import br.com.fintrackapi.mapper.TransactionMapper;
 import br.com.fintrackapi.security.CurrentUser;
 import br.com.fintrackapi.service.InvoiceService;
+import br.com.fintrackapi.service.TransactionService;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,12 +37,30 @@ public class InvoiceController {
                 .toList();
     }
 
+    /**
+     * The invoice itself. Its charges are paged separately through {@code /{id}/transactions},
+     * so turning a page of charges does not refetch the summary.
+     */
     @GetMapping("/{id}")
-    public InvoiceDetailResponse findById(@PathVariable UUID id) {
+    public InvoiceResponse findById(@PathVariable UUID id) {
         Invoice invoice = invoiceService.findById(id, currentUser.ownerId());
 
-        return InvoiceMapper.toDetailResponse(
-                invoice, invoiceService.derivedStatus(invoice), invoiceService.transactionsFor(invoice.getId()));
+        return InvoiceMapper.toResponse(invoice, invoiceService.derivedStatus(invoice));
+    }
+
+    @GetMapping("/{id}/transactions")
+    public PageResponse<TransactionResponse> transactions(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        // Resolved through the service so an invoice owned by someone else 404s before any of
+        // its charges are read.
+        Invoice invoice = invoiceService.findById(id, currentUser.ownerId());
+
+        return PageResponse.of(
+                invoiceService.transactionsFor(
+                        invoice.getId(), PageRequest.of(page, size, TransactionService.NEWEST_FIRST)),
+                TransactionMapper::toResponse);
     }
 
     @PostMapping("/{id}/pay")

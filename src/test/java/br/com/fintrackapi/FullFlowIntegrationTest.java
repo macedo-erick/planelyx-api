@@ -16,14 +16,16 @@ import br.com.fintrackapi.domain.enums.TransactionKind;
 import br.com.fintrackapi.dto.BankAccountRequest;
 import br.com.fintrackapi.dto.CategoryRequest;
 import br.com.fintrackapi.dto.CreditCardRequest;
-import br.com.fintrackapi.dto.InvoiceDetailResponse;
+import br.com.fintrackapi.dto.PageResponse;
+import br.com.fintrackapi.dto.TransactionResponse;
 import br.com.fintrackapi.dto.TransactionTemplateRequest;
-import br.com.fintrackapi.mapper.InvoiceMapper;
+import br.com.fintrackapi.mapper.TransactionMapper;
 import br.com.fintrackapi.repository.TransactionRepository;
 import br.com.fintrackapi.service.BankAccountService;
 import br.com.fintrackapi.service.CategoryService;
 import br.com.fintrackapi.service.CreditCardService;
 import br.com.fintrackapi.service.InvoiceService;
+import br.com.fintrackapi.service.TransactionService;
 import br.com.fintrackapi.service.TransactionTemplateService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -31,6 +33,7 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 
 class FullFlowIntegrationTest extends AbstractIntegrationTest {
 
@@ -106,11 +109,11 @@ class FullFlowIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void invoiceDetailMappingDoesNotFailOnLazyTemplateAssociation() {
-        // Mirrors what InvoiceController#findById does: fetch the invoice and its transactions in
-        // separate @Transactional service calls, then map them outside any transaction. Each
-        // transaction linked to an installment template holds a lazy TransactionTemplate proxy
-        // that must not require an open Hibernate session to serialize.
+    void invoiceChargeMappingDoesNotFailOnLazyTemplateAssociation() {
+        // Mirrors what InvoiceController#transactions does: page an invoice's charges in a
+        // @Transactional service call, then map them outside any transaction. Each charge linked
+        // to an installment template holds a lazy TransactionTemplate proxy that must not require
+        // an open Hibernate session to serialize.
         UUID ownerId = UUID.randomUUID();
 
         BankAccount account = bankAccountService.create(
@@ -139,10 +142,12 @@ class FullFlowIntegrationTest extends AbstractIntegrationTest {
         List<Invoice> invoices = invoiceService.findAll(ownerId, card.getId(), null);
         Invoice invoice = invoices.getFirst();
 
-        InvoiceDetailResponse response = InvoiceMapper.toDetailResponse(
-                invoice, invoiceService.derivedStatus(invoice), invoiceService.transactionsFor(invoice.getId()));
+        PageResponse<TransactionResponse> response = PageResponse.of(
+                invoiceService.transactionsFor(invoice.getId(), PageRequest.of(0, 25, TransactionService.NEWEST_FIRST)),
+                TransactionMapper::toResponse);
 
-        assertEquals(1, response.transactions().size());
-        assertEquals(3, response.transactions().getFirst().totalInstallments());
+        assertEquals(1, response.content().size());
+        assertEquals(1, response.totalElements());
+        assertEquals(3, response.content().getFirst().totalInstallments());
     }
 }

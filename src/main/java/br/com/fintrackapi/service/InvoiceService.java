@@ -19,6 +19,8 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -116,6 +118,10 @@ public class InvoiceService {
 
     public List<Transaction> transactionsFor(UUID invoiceId) {
         return transactionRepository.findAllByInvoiceId(invoiceId);
+    }
+
+    public Page<Transaction> transactionsFor(UUID invoiceId, Pageable pageable) {
+        return transactionRepository.findAllByInvoiceId(invoiceId, pageable);
     }
 
     /** Total still owed on a card — everything invoiced but not yet paid. */
