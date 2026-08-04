@@ -32,8 +32,21 @@ docker compose up -d
 ```
 
 This starts `postgres` and `keycloak` (the `api` service is opt-in, see below). Keycloak auto-imports a
-`fintrack` realm with a public client `fintrack-api` and a demo user (`demo` / `demo123`) — no manual setup
+`fintrack` realm with a public client `fintrack-api` and a demo user (`demo` / `Demo@Fintrack1`) — no manual setup
 needed in the Keycloak admin console.
+
+Self-registration is enabled: the login page shows a "Register" link, and new users are subject to the realm
+password policy — at least 12 characters with an uppercase letter, a lowercase letter, a digit and a special
+character, and not equal to the username or email. Email verification is off, since the realm has no SMTP
+server configured.
+
+The client's redirect URIs and web origins are scoped to the Angular app's origin rather than `*`. That origin
+defaults to `http://localhost:4200` and can be overridden by setting `FINTRACK_UI_ORIGIN` on the `keycloak`
+container (Keycloak substitutes `${VAR:default}` placeholders at realm-import time).
+
+Note that `--import-realm` only imports when the realm does not yet exist. If you already have a `fintrack`
+realm in the `keycloak` database, edits to `realm-export.json` are ignored on restart — change the setting in
+the admin console instead, or recreate the realm.
 
 Wait for both to report healthy:
 
@@ -63,14 +76,14 @@ curl -s -X POST http://localhost:8081/realms/fintrack/protocol/openid-connect/to
   -d 'client_id=fintrack-api' \
   -d 'grant_type=password' \
   -d 'username=demo' \
-  -d 'password=demo123' | jq -r .access_token
+  -d 'password=Demo@Fintrack1' | jq -r .access_token
 ```
 
 Use the resulting token as a bearer token against the API, e.g.:
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8081/realms/fintrack/protocol/openid-connect/token \
-  -d 'client_id=fintrack-api' -d 'grant_type=password' -d 'username=demo' -d 'password=demo123' \
+  -d 'client_id=fintrack-api' -d 'grant_type=password' -d 'username=demo' -d 'password=Demo@Fintrack1' \
   | jq -r .access_token)
 
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/bank-accounts

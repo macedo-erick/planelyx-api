@@ -3,6 +3,12 @@
   "enabled": true,
   "sslRequired": "none",
   "accessTokenLifespan": 3600,
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "verifyEmail": false,
+  "passwordPolicy": "length(12) and digits(1) and lowerCase(1) and upperCase(1) and specialChars(1) and notUsername and notEmail",
   "clients": [
     {
       "clientId": "fintrack-api",
@@ -11,8 +17,12 @@
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": true,
       "serviceAccountsEnabled": false,
-      "redirectUris": ["*"],
-      "webOrigins": ["*"]
+      "rootUrl": "${FINTRACK_UI_ORIGIN:http://localhost:4200}",
+      "redirectUris": ["${FINTRACK_UI_ORIGIN:http://localhost:4200}/*"],
+      "webOrigins": ["${FINTRACK_UI_ORIGIN:http://localhost:4200}"],
+      "attributes": {
+        "post.logout.redirect.uris": "${FINTRACK_UI_ORIGIN:http://localhost:4200}/*"
+      }
     }
   ],
   "users": [
@@ -26,7 +36,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "demo123",
+          "value": "Demo@Fintrack1",
           "temporary": false
         }
       ]

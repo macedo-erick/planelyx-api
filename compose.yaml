@@ -27,6 +27,9 @@ services:
       - 'KC_DB_USERNAME=${POSTGRES_USER:-fintrack}'
       - 'KC_DB_PASSWORD=${POSTGRES_PASSWORD:-fintrack}'
       - 'KC_HEALTH_ENABLED=true'
+      # Substituted into realm-export.json at import time to scope the client's
+      # redirect URIs and web origins to the Angular app.
+      - 'FINTRACK_UI_ORIGIN=${FINTRACK_UI_ORIGIN:-http://localhost:4200}'
     ports:
       - '8081:8080'
     volumes:
