@@ -2,16 +2,16 @@ services:
   postgres:
     image: 'postgres:17-alpine'
     environment:
-      - 'POSTGRES_DB=${POSTGRES_DB:-fintrack}'
-      - 'POSTGRES_USER=${POSTGRES_USER:-fintrack}'
-      - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-fintrack}'
+      - 'POSTGRES_DB=${POSTGRES_DB:-planelyx}'
+      - 'POSTGRES_USER=${POSTGRES_USER:-planelyx}'
+      - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-planelyx}'
     ports:
       - '5432:5432'
     volumes:
-      - 'fintrack-postgres-data:/var/lib/postgresql/data'
+      - 'planelyx-postgres-data:/var/lib/postgresql/data'
       - './docker/postgres/init-keycloak-db.sql:/docker-entrypoint-initdb.d/init-keycloak-db.sql'
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-fintrack} -d ${POSTGRES_DB:-fintrack}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-planelyx} -d ${POSTGRES_DB:-planelyx}']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -24,8 +24,8 @@ services:
       - 'KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}'
       - 'KC_DB=postgres'
       - 'KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak'
-      - 'KC_DB_USERNAME=${POSTGRES_USER:-fintrack}'
-      - 'KC_DB_PASSWORD=${POSTGRES_PASSWORD:-fintrack}'
+      - 'KC_DB_USERNAME=${POSTGRES_USER:-planelyx}'
+      - 'KC_DB_PASSWORD=${POSTGRES_PASSWORD:-planelyx}'
       - 'KC_HEALTH_ENABLED=true'
       - 'FINTRACK_UI_ORIGIN=${FINTRACK_UI_ORIGIN:-http://localhost:4200}'
     ports:
@@ -51,10 +51,10 @@ services:
     environment:
       - 'DB_HOST=postgres'
       - 'DB_PORT=5432'
-      - 'POSTGRES_DB=${POSTGRES_DB:-fintrack}'
-      - 'POSTGRES_USER=${POSTGRES_USER:-fintrack}'
-      - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-fintrack}'
-      - 'KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/fintrack'
+      - 'POSTGRES_DB=${POSTGRES_DB:-planelyx}'
+      - 'POSTGRES_USER=${POSTGRES_USER:-planelyx}'
+      - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-planelyx}'
+      - 'KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/planelyx'
     ports:
       - '8080:8080'
     depends_on:
@@ -64,4 +64,4 @@ services:
         condition: service_healthy
 
 volumes:
-  fintrack-postgres-data:
+  planelyx-postgres-data:

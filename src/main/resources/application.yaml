@@ -1,10 +1,10 @@
 spring:
   application:
-    name: fintrack-api
+    name: planelyx-api
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${POSTGRES_DB:fintrack}
-    username: ${POSTGRES_USER:fintrack}
-    password: ${POSTGRES_PASSWORD:fintrack}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${POSTGRES_DB:planelyx}
+    username: ${POSTGRES_USER:planelyx}
+    password: ${POSTGRES_PASSWORD:planelyx}
   jpa:
     open-in-view: false
     hibernate:
@@ -16,7 +16,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/fintrack}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/planelyx}
 
 server:
   port: ${SERVER_PORT:8080}

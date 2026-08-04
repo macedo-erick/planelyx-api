@@ -1,9 +1,9 @@
 {
-  "realm": "fintrack",
+  "realm": "planelyx",
   "enabled": true,
-  "displayName": "Fintrack",
-  "displayNameHtml": "Fintrack",
-  "loginTheme": "fintrack",
+  "displayName": "Planelyx",
+  "displayNameHtml": "Planelyx",
+  "loginTheme": "planelyx",
   "sslRequired": "none",
   "accessTokenLifespan": 3600,
   "registrationAllowed": true,
@@ -15,7 +15,7 @@
   "passwordPolicy": "length(12) and digits(1) and lowerCase(1) and upperCase(1) and specialChars(1) and notUsername and notEmail",
   "clients": [
     {
-      "clientId": "fintrack-api",
+      "clientId": "planelyx-api",
       "enabled": true,
       "publicClient": true,
       "directAccessGrantsEnabled": true,
@@ -32,7 +32,7 @@
   "users": [
     {
       "username": "demo",
-      "email": "demo@fintrack.local",
+      "email": "demo@planelyx.local",
       "enabled": true,
       "emailVerified": true,
       "firstName": "Demo",
