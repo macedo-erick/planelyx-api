@@ -1,6 +1,9 @@
 {
   "realm": "fintrack",
   "enabled": true,
+  "displayName": "Fintrack",
+  "displayNameHtml": "Fintrack",
+  "loginTheme": "fintrack",
   "sslRequired": "none",
   "accessTokenLifespan": 3600,
   "registrationAllowed": true,

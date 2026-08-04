@@ -48,6 +48,20 @@ Note that `--import-realm` only imports when the realm does not yet exist. If yo
 realm in the `keycloak` database, edits to `realm-export.json` are ignored on restart — change the setting in
 the admin console instead, or recreate the realm.
 
+### Login theme
+
+Keycloak's own login, registration and account-recovery screens are branded by the `fintrack` theme in
+`docker/keycloak/themes/fintrack`, mounted into the container and selected via the realm's `loginTheme`.
+
+It inherits from Keycloak's built-in `keycloak.v2` theme and adds a single stylesheet, so no FreeMarker
+templates are copied and upgrades stay cheap. The palette mirrors the Angular app's PrimeNG "Aura" preset
+(emerald primary, zinc surfaces) and follows the OS light/dark preference. To restyle, edit
+`login/resources/css/fintrack.css` — `start-dev` disables theme caching, so a browser refresh is enough.
+
+Structural changes (moving fields, changing markup) mean copying the relevant `.ftl` out of Keycloak's
+`org.keycloak.keycloak-themes-*.jar` into `login/` and editing it there. Note that the registration form's
+fields are declarative — add or reorder them under Realm settings → User profile, not in `register.ftl`.
+
 Wait for both to report healthy:
 
 ```bash
