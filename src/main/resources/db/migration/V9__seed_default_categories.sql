@@ -1,4 +1,3 @@
--- owner_id NULL marks a system-wide default category, visible to every user.
 INSERT INTO category (id, owner_id, name, type, icon, color) VALUES
     (gen_random_uuid(), NULL, 'Groceries', 'EXPENSE', 'fa-cart-shopping', '#22c55e'),
     (gen_random_uuid(), NULL, 'Housing', 'EXPENSE', 'fa-house', '#f97316'),

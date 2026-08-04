@@ -29,9 +29,6 @@ public class Category extends Auditable {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    /**
-     * Null means this is a system-wide default category, visible to every user.
-     */
     @Column(name = "owner_id")
     private UUID ownerId;
 

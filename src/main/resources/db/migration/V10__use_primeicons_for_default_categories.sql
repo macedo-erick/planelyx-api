@@ -1,4 +1,3 @@
--- Switches default category icons from Font Awesome to PrimeIcons (pi-* class names).
 UPDATE category SET icon = 'pi-shopping-cart' WHERE owner_id IS NULL AND name = 'Groceries';
 UPDATE category SET icon = 'pi-home' WHERE owner_id IS NULL AND name = 'Housing';
 UPDATE category SET icon = 'pi-bolt' WHERE owner_id IS NULL AND name = 'Utilities';

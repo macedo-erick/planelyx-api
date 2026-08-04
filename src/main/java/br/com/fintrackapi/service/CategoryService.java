@@ -21,20 +21,12 @@ public class CategoryService {
         return categoryRepository.findAllVisibleToOwner(ownerId);
     }
 
-    /**
-     * Looks up a category the owner may reference (their own, or a default/global one).
-     * Use this when validating a category id supplied on a transaction or template.
-     */
     public Category findById(UUID id, UUID ownerId) {
         return categoryRepository
                 .findVisibleByIdAndOwner(id, ownerId)
                 .orElseThrow(() -> new NotFoundException("Category not found: " + id));
     }
 
-    /**
-     * Looks up a category strictly owned by the caller. Default/global categories are not
-     * returned here since they cannot be edited or deleted by users.
-     */
     private Category findOwnedById(UUID id, UUID ownerId) {
         return categoryRepository
                 .findByIdAndOwnerId(id, ownerId)

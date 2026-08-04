@@ -5,10 +5,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 
-/**
- * Resolves the authenticated owner id from the {@code sub} claim of the
- * validated Keycloak JWT bound to the current request.
- */
 @Component
 public class CurrentUser {
 
