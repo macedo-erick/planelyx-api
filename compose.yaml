@@ -27,7 +27,7 @@ services:
       - 'KC_DB_USERNAME=${POSTGRES_USER:-planelyx}'
       - 'KC_DB_PASSWORD=${POSTGRES_PASSWORD:-planelyx}'
       - 'KC_HEALTH_ENABLED=true'
-      - 'FINTRACK_UI_ORIGIN=${FINTRACK_UI_ORIGIN:-http://localhost:4200}'
+      - 'PLANELYX_UI_ORIGIN=${PLANELYX_UI_ORIGIN:-http://localhost:4200}'
     ports:
       - '8081:8080'
     volumes:

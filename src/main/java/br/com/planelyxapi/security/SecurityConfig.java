@@ -17,7 +17,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Value("${FINTRACK_CORS_ORIGINS:http://localhost:4200}")
+    @Value("${PLANELYX_CORS_ORIGINS:http://localhost:4200}")
     private List<String> corsOrigins;
 
     @Bean
@@ -41,6 +41,10 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(
                         auth -> auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                                .permitAll()
+                                // Container and uptime probes have no token. The reverse proxy
+                                // blocks /actuator from the internet, so this stays internal.
+                                .requestMatchers("/actuator/health/**")
                                 .permitAll()
                                 .anyRequest()
                                 .authenticated())

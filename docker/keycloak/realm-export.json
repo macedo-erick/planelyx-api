@@ -21,11 +21,11 @@
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": true,
       "serviceAccountsEnabled": false,
-      "rootUrl": "${FINTRACK_UI_ORIGIN:http://localhost:4200}",
-      "redirectUris": ["${FINTRACK_UI_ORIGIN:http://localhost:4200}/*"],
-      "webOrigins": ["${FINTRACK_UI_ORIGIN:http://localhost:4200}"],
+      "rootUrl": "${PLANELYX_UI_ORIGIN:http://localhost:4200}",
+      "redirectUris": ["${PLANELYX_UI_ORIGIN:http://localhost:4200}/*"],
+      "webOrigins": ["${PLANELYX_UI_ORIGIN:http://localhost:4200}"],
       "attributes": {
-        "post.logout.redirect.uris": "${FINTRACK_UI_ORIGIN:http://localhost:4200}/*"
+        "post.logout.redirect.uris": "${PLANELYX_UI_ORIGIN:http://localhost:4200}/*"
       }
     }
   ],

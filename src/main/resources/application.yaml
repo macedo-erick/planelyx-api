@@ -20,6 +20,21 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  # Behind nginx the app sees http://127.0.0.1:8082. Honouring X-Forwarded-* makes
+  # generated URLs and OAuth2 error handling reflect the real https://planelyx.com.br.
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Health only. Nginx 404s /actuator from outside, but keep the surface minimal
+        # in case that ever changes.
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
 
 springdoc:
   swagger-ui:

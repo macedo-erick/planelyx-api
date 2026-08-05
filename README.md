@@ -41,7 +41,7 @@ character, and not equal to the username or email. Email verification is off, si
 server configured.
 
 The client's redirect URIs and web origins are scoped to the Angular app's origin rather than `*`. That origin
-defaults to `http://localhost:4200` and can be overridden by setting `FINTRACK_UI_ORIGIN` on the `keycloak`
+defaults to `http://localhost:4200` and can be overridden by setting `PLANELYX_UI_ORIGIN` on the `keycloak`
 container (Keycloak substitutes `${VAR:default}` placeholders at realm-import time).
 
 Note that `--import-realm` only imports when the realm does not yet exist. If you already have a `planelyx`
