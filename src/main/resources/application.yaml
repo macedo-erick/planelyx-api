@@ -18,6 +18,15 @@ spring:
         jwt:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/planelyx}
 
+planelyx:
+  keycloak:
+    # Used to call Keycloak's Admin API for the signed-in user's own profile. The client is a
+    # confidential service account — see planelyx-auth/README.md for the realm-import caveat.
+    server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8081}
+    realm: ${KEYCLOAK_REALM:planelyx}
+    client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:planelyx-api-admin}
+    client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:local-dev-secret}
+
 server:
   port: ${SERVER_PORT:8080}
   # Behind nginx the app sees http://127.0.0.1:8082. Honouring X-Forwarded-* makes

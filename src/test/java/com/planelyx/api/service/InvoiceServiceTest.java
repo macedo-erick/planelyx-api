@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 
 class InvoiceServiceTest {
 
-    private final InvoiceService invoiceService = new InvoiceService(null, null, null);
+    private final InvoiceService invoiceService = new InvoiceService(null, null, null, null);
 
     @Test
     void resolvesBillingPeriodAfterClosingDay() {

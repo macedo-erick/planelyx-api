@@ -2,11 +2,15 @@ package com.planelyx.api.service;
 
 import static java.util.Objects.isNull;
 
+import com.planelyx.api.domain.Category;
 import com.planelyx.api.domain.CreditCard;
 import com.planelyx.api.domain.Invoice;
+import com.planelyx.api.domain.SystemCategories;
 import com.planelyx.api.domain.Transaction;
 import com.planelyx.api.domain.enums.InvoiceStatus;
+import com.planelyx.api.domain.enums.TransactionKind;
 import com.planelyx.api.exception.NotFoundException;
+import com.planelyx.api.repository.CategoryRepository;
 import com.planelyx.api.repository.InvoiceRepository;
 import com.planelyx.api.repository.TransactionRepository;
 import java.math.BigDecimal;
@@ -31,6 +35,7 @@ public class InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
     private final TransactionRepository transactionRepository;
+    private final CategoryRepository categoryRepository;
     private final CreditCardService creditCardService;
 
     public BillingPeriod resolveBillingPeriod(CreditCard card, LocalDate transactionDate) {
@@ -147,6 +152,72 @@ public class InvoiceService {
         }
 
         return invoice;
+    }
+
+    /**
+     * Corrects the invoice to the figure the owner read off their statement.
+     *
+     * The total is the sum of the invoice's charges, so there is nothing to overwrite — the
+     * difference is recorded as a charge of its own and the total recomputed from it. That
+     * leaves the discrepancy visible among the charges instead of silently absorbed.
+     *
+     * The adjustment charge is written directly rather than through
+     * {@link TransactionService#create}, which requires a positive amount: correcting an invoice
+     * downwards needs a negative one. Nothing downstream minds — the column has no sign
+     * constraint, the total is a plain sum, and the dashboard's expense figure adds every
+     * non-credit kind, so a negative charge correctly reduces reported spending.
+     *
+     * A paid invoice is refused. Its charges have already been settled, and moving the total
+     * afterwards would rewrite what was actually paid.
+     */
+    public Invoice adjust(UUID id, BigDecimal targetAmount, UUID ownerId) {
+        Invoice invoice = findById(id, ownerId);
+
+        if (derivedStatus(invoice) == InvoiceStatus.PAID) {
+            throw new IllegalStateException("A paid invoice cannot be adjusted: " + id);
+        }
+
+        BigDecimal delta = targetAmount.subtract(invoice.getTotalAmount());
+
+        if (delta.signum() == 0) {
+            return invoice;
+        }
+
+        transactionRepository.save(Transaction.builder()
+                .ownerId(invoice.getCreditCard().getOwnerId())
+                .kind(TransactionKind.CARD_CHARGE)
+                .creditCard(invoice.getCreditCard())
+                .invoice(invoice)
+                .category(adjustmentCategory())
+                .amount(delta)
+                .transactionDate(adjustmentDate(invoice))
+                .description("Invoice adjustment")
+                .paid(true)
+                .build());
+
+        recomputeTotal(invoice.getId());
+
+        return invoice;
+    }
+
+    /**
+     * A date inside the billing period, so the charge lands on this invoice rather than being
+     * swept into the next one by {@link #resolveBillingPeriod}.
+     */
+    private LocalDate adjustmentDate(Invoice invoice) {
+        LocalDate today = LocalDate.now();
+
+        if (today.isBefore(invoice.getBillingPeriodStart())) {
+            return invoice.getBillingPeriodStart();
+        }
+
+        return today.isAfter(invoice.getBillingPeriodEnd()) ? invoice.getBillingPeriodEnd() : today;
+    }
+
+    private Category adjustmentCategory() {
+        return categoryRepository
+                .findById(SystemCategories.ADJUSTMENT_EXPENSE)
+                .orElseThrow(() -> new NotFoundException("Adjustment category is missing — check migration V11"));
     }
 
     public Invoice unpay(UUID id, UUID ownerId) {
