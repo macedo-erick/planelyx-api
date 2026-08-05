@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write # Workload Identity Federation
 
 env:
   REGION: southamerica-east1
@@ -35,10 +34,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Service-account JSON key. The key already identifies the account, so no
+      # `service_account:` input here — that one is for impersonation.
       - uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
-          service_account: ${{ secrets.GCP_SA_EMAIL }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - uses: google-github-actions/setup-gcloud@v2
 
