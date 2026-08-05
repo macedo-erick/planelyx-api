@@ -28,6 +28,7 @@ services:
       - 'KC_DB_PASSWORD=${POSTGRES_PASSWORD:-planelyx}'
       - 'KC_HEALTH_ENABLED=true'
       - 'PLANELYX_UI_ORIGIN=${PLANELYX_UI_ORIGIN:-http://localhost:4200}'
+      - 'PLANELYX_KEYCLOAK_ADMIN_CLIENT_SECRET=${PLANELYX_KEYCLOAK_ADMIN_CLIENT_SECRET:-local-dev-secret}'
     ports:
       - '8081:8080'
     volumes:
@@ -55,6 +56,10 @@ services:
       - 'POSTGRES_USER=${POSTGRES_USER:-planelyx}'
       - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-planelyx}'
       - 'KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/planelyx'
+      - 'KEYCLOAK_SERVER_URL=http://keycloak:8080'
+      - 'KEYCLOAK_REALM=${KEYCLOAK_REALM:-planelyx}'
+      - 'KEYCLOAK_ADMIN_CLIENT_ID=${KEYCLOAK_ADMIN_CLIENT_ID:-planelyx-api-admin}'
+      - 'KEYCLOAK_ADMIN_CLIENT_SECRET=${PLANELYX_KEYCLOAK_ADMIN_CLIENT_SECRET:-local-dev-secret}'
     ports:
       - '8080:8080'
     depends_on:

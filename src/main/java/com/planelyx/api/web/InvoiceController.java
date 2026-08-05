@@ -2,6 +2,7 @@ package com.planelyx.api.web;
 
 import com.planelyx.api.domain.Invoice;
 import com.planelyx.api.domain.enums.InvoiceStatus;
+import com.planelyx.api.dto.InvoiceAdjustmentRequest;
 import com.planelyx.api.dto.InvoiceResponse;
 import com.planelyx.api.dto.PageResponse;
 import com.planelyx.api.dto.TransactionResponse;
@@ -10,6 +11,7 @@ import com.planelyx.api.mapper.TransactionMapper;
 import com.planelyx.api.security.CurrentUser;
 import com.planelyx.api.service.InvoiceService;
 import com.planelyx.api.service.TransactionService;
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -61,6 +64,17 @@ public class InvoiceController {
                 invoiceService.transactionsFor(
                         invoice.getId(), PageRequest.of(page, size, TransactionService.NEWEST_FIRST)),
                 TransactionMapper::toResponse);
+    }
+
+    /**
+     * Sets the invoice total to a given figure by recording the difference as a charge on it.
+     * Refused once the invoice is paid.
+     */
+    @PostMapping("/{id}/adjust")
+    public InvoiceResponse adjust(@PathVariable UUID id, @Valid @RequestBody InvoiceAdjustmentRequest request) {
+        Invoice invoice = invoiceService.adjust(id, request.targetAmount(), currentUser.ownerId());
+
+        return InvoiceMapper.toResponse(invoice, invoiceService.derivedStatus(invoice));
     }
 
     @PostMapping("/{id}/pay")

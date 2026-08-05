@@ -16,7 +16,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -86,21 +85,13 @@ public class DashboardService {
     }
 
     /**
-     * Initial balance plus account credits minus account debits, cumulative to {@code asOf}.
+     * The accounts with their balance as of {@code asOf}, named and ordered for display.
      *
-     * Card charges never move an account balance — they sit on an invoice until it is paid.
+     * The arithmetic lives in {@link BankAccountService#balancesAsOf} so this and the accounts
+     * page cannot drift apart.
      */
     private List<DashboardResponse.AccountBalance> accountBalances(UUID ownerId, LocalDate asOf) {
-        Map<UUID, BigDecimal> movementByAccount = new HashMap<>();
-
-        for (TransactionRepository.AccountKindTotal row :
-                transactionRepository.sumByAccountAndKindAsOf(ownerId, asOf)) {
-            BigDecimal signed = row.getKind() == TransactionKind.ACCOUNT_CREDIT
-                    ? row.getTotal()
-                    : row.getTotal().negate();
-
-            movementByAccount.merge(row.getBankAccountId(), signed, BigDecimal::add);
-        }
+        Map<UUID, BigDecimal> balances = bankAccountService.balancesAsOf(ownerId, asOf);
 
         return bankAccountService.findAll(ownerId).stream()
                 .sorted(Comparator.comparing(BankAccount::getName))
@@ -109,8 +100,7 @@ public class DashboardService {
                         account.getName(),
                         account.getBankName(),
                         account.getCurrency(),
-                        account.getInitialBalance()
-                                .add(movementByAccount.getOrDefault(account.getId(), BigDecimal.ZERO))))
+                        balances.getOrDefault(account.getId(), account.getInitialBalance())))
                 .toList();
     }
 
