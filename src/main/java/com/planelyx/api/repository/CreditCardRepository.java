@@ -11,4 +11,6 @@ public interface CreditCardRepository extends JpaRepository<CreditCard, UUID> {
     List<CreditCard> findAllByOwnerId(UUID ownerId);
 
     Optional<CreditCard> findByIdAndOwnerId(UUID id, UUID ownerId);
+
+    List<CreditCard> findAllByBankAccountId(UUID bankAccountId);
 }

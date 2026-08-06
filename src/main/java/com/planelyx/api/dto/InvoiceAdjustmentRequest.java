@@ -2,6 +2,7 @@ package com.planelyx.api.dto;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 
 /**
@@ -11,4 +12,9 @@ import java.math.BigDecimal;
  * caller never has to work out a delta itself.
  */
 public record InvoiceAdjustmentRequest(
-        @NotNull @PositiveOrZero BigDecimal targetAmount) {}
+        @NotNull @PositiveOrZero BigDecimal targetAmount,
+        /**
+         * What the resulting charge should be called. Absent falls back to English: the API holds no
+         * translations, so only a caller that knows the user's language can name it properly.
+         */
+        @Size(max = 255) String description) {}

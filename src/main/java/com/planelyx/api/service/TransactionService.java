@@ -7,6 +7,7 @@ import com.planelyx.api.domain.BankAccount;
 import com.planelyx.api.domain.Category;
 import com.planelyx.api.domain.CreditCard;
 import com.planelyx.api.domain.Invoice;
+import com.planelyx.api.domain.SystemCategories;
 import com.planelyx.api.domain.Transaction;
 import com.planelyx.api.domain.enums.TransactionKind;
 import com.planelyx.api.domain.enums.TransactionScope;
@@ -178,6 +179,18 @@ public class TransactionService {
     }
 
     public Transaction create(TransactionRequest request, UUID ownerId) {
+        rejectSystemCategory(request.categoryId());
+
+        return createCorrection(request, ownerId);
+    }
+
+    /**
+     * The same write without the system-category guard, for the corrections the app posts on its
+     * own behalf — {@link BalanceAdjustmentService} routes through here so an adjustment still gets
+     * the ordinary validation, invoice rules and paid flag while legitimately wearing the
+     * adjustment category.
+     */
+    Transaction createCorrection(TransactionRequest request, UUID ownerId) {
         TransactionKindValidator.validate(request.kind(), request.bankAccountId(), request.creditCardId());
         Category category = categoryService.findById(request.categoryId(), ownerId);
 
@@ -217,6 +230,8 @@ public class TransactionService {
      * monthly series onto a single day.
      */
     public Transaction update(UUID id, TransactionUpdateRequest request, UUID ownerId) {
+        rejectSystemCategory(request.categoryId());
+
         Transaction target = findById(id, ownerId);
         Category category = categoryService.findById(request.categoryId(), ownerId);
         List<Transaction> affected = inScope(target, request.scopeOrDefault());
@@ -282,6 +297,17 @@ public class TransactionService {
         return siblings.stream()
                 .filter(sibling -> !sibling.getTransactionDate().isBefore(target.getTransactionDate()))
                 .toList();
+    }
+
+    /**
+     * The adjustment categories mark a correction the app made, so a user may not file against one
+     * directly — a hand-written transaction wearing that label would read as reconciled when
+     * nothing was reconciled. Clients keep them out of their pickers; this is the backstop.
+     */
+    private void rejectSystemCategory(UUID categoryId) {
+        if (SystemCategories.contains(categoryId)) {
+            throw new IllegalArgumentException("Category is reserved for adjustments: " + categoryId);
+        }
     }
 
     private void recomputeInvoices(List<Transaction> transactions) {

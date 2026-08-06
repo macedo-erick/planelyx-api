@@ -151,7 +151,7 @@ class AdjustmentIntegrationTest extends AbstractIntegrationTest {
         InvoiceFixture fixture = invoice(new BigDecimal("200.00"));
 
         Invoice adjusted =
-                invoiceService.adjust(fixture.invoice().getId(), new BigDecimal("320.00"), fixture.ownerId());
+                invoiceService.adjust(fixture.invoice().getId(), new BigDecimal("320.00"), null, fixture.ownerId());
 
         assertEquals(0, new BigDecimal("320.00").compareTo(adjusted.getTotalAmount()));
         assertEquals(
@@ -167,7 +167,7 @@ class AdjustmentIntegrationTest extends AbstractIntegrationTest {
         InvoiceFixture fixture = invoice(new BigDecimal("200.00"));
 
         Invoice adjusted =
-                invoiceService.adjust(fixture.invoice().getId(), new BigDecimal("150.00"), fixture.ownerId());
+                invoiceService.adjust(fixture.invoice().getId(), new BigDecimal("150.00"), null, fixture.ownerId());
 
         assertEquals(0, new BigDecimal("150.00").compareTo(adjusted.getTotalAmount()));
         assertEquals(
@@ -179,7 +179,7 @@ class AdjustmentIntegrationTest extends AbstractIntegrationTest {
     void adjustmentChargeLandsInsideTheBillingPeriod() {
         InvoiceFixture fixture = invoice(new BigDecimal("200.00"));
 
-        invoiceService.adjust(fixture.invoice().getId(), new BigDecimal("210.00"), fixture.ownerId());
+        invoiceService.adjust(fixture.invoice().getId(), new BigDecimal("210.00"), null, fixture.ownerId());
 
         Transaction charge = adjustmentCharge(fixture);
         Invoice invoice = fixture.invoice();
@@ -196,13 +196,14 @@ class AdjustmentIntegrationTest extends AbstractIntegrationTest {
 
         assertThrows(
                 IllegalStateException.class,
-                () -> invoiceService.adjust(fixture.invoice().getId(), new BigDecimal("250.00"), fixture.ownerId()));
+                () -> invoiceService.adjust(
+                        fixture.invoice().getId(), new BigDecimal("250.00"), null, fixture.ownerId()));
     }
 
     private Optional<Transaction> adjust(Fixture fixture, String target) {
         return balanceAdjustmentService.adjust(
                 fixture.account().getId(),
-                new BalanceAdjustmentRequest(new BigDecimal(target), null),
+                new BalanceAdjustmentRequest(new BigDecimal(target), null, null),
                 fixture.ownerId());
     }
 

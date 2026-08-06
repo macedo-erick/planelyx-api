@@ -23,6 +23,7 @@ public class BankAccountService {
 
     private final BankAccountRepository bankAccountRepository;
     private final TransactionRepository transactionRepository;
+    private final CascadeDeleteService cascadeDeleteService;
 
     public List<BankAccount> findAll(UUID ownerId) {
         return bankAccountRepository.findAllByOwnerId(ownerId);
@@ -103,9 +104,8 @@ public class BankAccountService {
         return bankAccountRepository.save(account);
     }
 
+    /** Takes the account's cards, transactions and invoices with it — see {@link CascadeDeleteService}. */
     public void delete(UUID id, UUID ownerId) {
-        BankAccount account = findById(id, ownerId);
-
-        bankAccountRepository.delete(account);
+        cascadeDeleteService.deleteBankAccount(findById(id, ownerId));
     }
 }

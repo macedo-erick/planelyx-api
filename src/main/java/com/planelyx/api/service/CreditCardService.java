@@ -18,6 +18,7 @@ public class CreditCardService {
 
     private final CreditCardRepository creditCardRepository;
     private final BankAccountService bankAccountService;
+    private final CascadeDeleteService cascadeDeleteService;
 
     public List<CreditCard> findAll(UUID ownerId) {
         return creditCardRepository.findAllByOwnerId(ownerId);
@@ -59,9 +60,8 @@ public class CreditCardService {
         return creditCardRepository.save(card);
     }
 
+    /** Takes the card's charges and invoices with it — see {@link CascadeDeleteService}. */
     public void delete(UUID id, UUID ownerId) {
-        CreditCard card = findById(id, ownerId);
-
-        creditCardRepository.delete(card);
+        cascadeDeleteService.deleteCreditCard(findById(id, ownerId));
     }
 }

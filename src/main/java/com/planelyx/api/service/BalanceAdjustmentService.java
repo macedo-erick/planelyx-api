@@ -13,6 +13,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 /**
  * Correcting an account balance to a figure the owner read off their bank.
@@ -30,7 +31,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class BalanceAdjustmentService {
 
-    private static final String DESCRIPTION = "Balance adjustment";
+    /**
+     * Used when the caller sends no wording of its own. The API has no translations, so the text a
+     * user actually reads comes from the client that knows their language.
+     */
+    private static final String DEFAULT_DESCRIPTION = "Balance adjustment";
 
     private final BankAccountService bankAccountService;
     private final TransactionService transactionService;
@@ -63,8 +68,8 @@ public class BalanceAdjustmentService {
                 inflow ? SystemCategories.ADJUSTMENT_INCOME : SystemCategories.ADJUSTMENT_EXPENSE,
                 delta.abs(),
                 date,
-                DESCRIPTION);
+                StringUtils.hasText(request.description()) ? request.description() : DEFAULT_DESCRIPTION);
 
-        return Optional.of(transactionService.create(transaction, ownerId));
+        return Optional.of(transactionService.createCorrection(transaction, ownerId));
     }
 }
