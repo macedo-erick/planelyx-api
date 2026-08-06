@@ -16,6 +16,7 @@ import com.planelyx.api.security.CurrentUser;
 import com.planelyx.api.security.SecurityConfig;
 import com.planelyx.api.service.InvoiceService;
 import com.planelyx.api.service.TransactionService;
+import com.planelyx.api.service.UserProvisioningService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -43,6 +44,10 @@ class InvoiceControllerTest {
 
     @MockitoBean
     private TransactionService transactionService;
+
+    /** Pulled into the slice by {@link SecurityConfig}; nothing here exercises provisioning. */
+    @MockitoBean
+    private UserProvisioningService userProvisioningService;
 
     /**
      * The reference month has to reach the client as {@code "2026-09"}.

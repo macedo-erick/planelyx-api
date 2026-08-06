@@ -218,7 +218,7 @@ class TransactionServiceIntegrationTest extends AbstractIntegrationTest {
 
     /** An installment template of {@code count} monthly card charges, plus its middle occurrence. */
     private Series seedInstallments(int count) {
-        UUID ownerId = UUID.randomUUID();
+        UUID ownerId = newOwner();
 
         BankAccount account = bankAccountService.create(
                 new BankAccountRequest("Checking", "Test Bank", AccountType.CHECKING, BigDecimal.ZERO, "BRL"), ownerId);
@@ -302,7 +302,7 @@ class TransactionServiceIntegrationTest extends AbstractIntegrationTest {
     }
 
     private Fixture base() {
-        UUID ownerId = UUID.randomUUID();
+        UUID ownerId = newOwner();
 
         BankAccount account = bankAccountService.create(
                 new BankAccountRequest("Checking", "Test Bank", AccountType.CHECKING, BigDecimal.ZERO, "BRL"), ownerId);

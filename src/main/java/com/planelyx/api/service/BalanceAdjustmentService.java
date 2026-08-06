@@ -1,10 +1,12 @@
 package com.planelyx.api.service;
 
-import com.planelyx.api.domain.SystemCategories;
 import com.planelyx.api.domain.Transaction;
+import com.planelyx.api.domain.enums.CategoryType;
 import com.planelyx.api.domain.enums.TransactionKind;
 import com.planelyx.api.dto.BalanceAdjustmentRequest;
 import com.planelyx.api.dto.TransactionRequest;
+import com.planelyx.api.exception.NotFoundException;
+import com.planelyx.api.repository.CategoryRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Objects;
@@ -39,6 +41,7 @@ public class BalanceAdjustmentService {
 
     private final BankAccountService bankAccountService;
     private final TransactionService transactionService;
+    private final CategoryRepository categoryRepository;
 
     /**
      * Posts the difference between {@code request.targetBalance()} and the balance on the
@@ -65,11 +68,18 @@ public class BalanceAdjustmentService {
                 inflow ? TransactionKind.ACCOUNT_CREDIT : TransactionKind.ACCOUNT_DEBIT,
                 bankAccountId,
                 null,
-                inflow ? SystemCategories.ADJUSTMENT_INCOME : SystemCategories.ADJUSTMENT_EXPENSE,
+                adjustmentCategoryId(ownerId, inflow ? CategoryType.INCOME : CategoryType.EXPENSE),
                 delta.abs(),
                 date,
                 StringUtils.hasText(request.description()) ? request.description() : DEFAULT_DESCRIPTION);
 
         return Optional.of(transactionService.createCorrection(transaction, ownerId));
+    }
+
+    private UUID adjustmentCategoryId(UUID ownerId, CategoryType type) {
+        return categoryRepository
+                .findAdjustmentForOwner(ownerId, type)
+                .orElseThrow(() -> new NotFoundException("Adjustment category is missing for owner: " + ownerId))
+                .getId();
     }
 }

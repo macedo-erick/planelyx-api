@@ -57,7 +57,7 @@ class FullFlowIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void creatingAnInstallmentTemplateGeneratesOccurrencesAndAnInvoice() {
-        UUID ownerId = UUID.randomUUID();
+        UUID ownerId = newOwner();
 
         BankAccount account = bankAccountService.create(
                 new BankAccountRequest("Checking", "Test Bank", AccountType.CHECKING, BigDecimal.TEN, "BRL"), ownerId);
@@ -114,7 +114,7 @@ class FullFlowIntegrationTest extends AbstractIntegrationTest {
         // @Transactional service call, then map them outside any transaction. Each charge linked
         // to an installment template holds a lazy TransactionTemplate proxy that must not require
         // an open Hibernate session to serialize.
-        UUID ownerId = UUID.randomUUID();
+        UUID ownerId = newOwner();
 
         BankAccount account = bankAccountService.create(
                 new BankAccountRequest("Checking", "Test Bank", AccountType.CHECKING, BigDecimal.TEN, "BRL"), ownerId);
