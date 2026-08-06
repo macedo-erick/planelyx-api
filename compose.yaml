@@ -16,24 +16,50 @@ services:
       timeout: 5s
       retries: 10
 
+  # Built from the sibling repo rather than pulled from Docker Hub, so local dev runs the same
+  # Keycloak production does: same realm, same login theme, same provisioning event listener.
+  # This repo deliberately holds no Keycloak configuration of its own — it used to hold a second
+  # copy of the realm and theme, and the two drifted.
+  #
+  # Requires planelyx-auth checked out beside planelyx-api. The first `up` builds it, which
+  # includes compiling the event listener; after that it is cached.
   keycloak:
-    image: 'quay.io/keycloak/keycloak:26.0'
+    build:
+      context: ../planelyx-auth
     command: ['start-dev', '--import-realm']
     environment:
-      - 'KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}'
-      - 'KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}'
+      - 'KC_BOOTSTRAP_ADMIN_USERNAME=${KEYCLOAK_ADMIN:-admin}'
+      - 'KC_BOOTSTRAP_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}'
       - 'KC_DB=postgres'
       - 'KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak'
       - 'KC_DB_USERNAME=${POSTGRES_USER:-planelyx}'
       - 'KC_DB_PASSWORD=${POSTGRES_PASSWORD:-planelyx}'
       - 'KC_HEALTH_ENABLED=true'
+      # Baked into the auth image, but repeated here because `start-dev` re-runs augmentation and
+      # an unset build option falls back to its default. Losing /auth would move the issuer out
+      # from under the path the API validates against, which reads as a broken key rather than a
+      # broken URL. KC_HTTP_MANAGEMENT_RELATIVE_PATH keeps the health probe off that prefix.
+      - 'KC_HTTP_RELATIVE_PATH=/auth'
+      - 'KC_HTTP_MANAGEMENT_RELATIVE_PATH=/'
       - 'PLANELYX_UI_ORIGIN=${PLANELYX_UI_ORIGIN:-http://localhost:4200}'
+      - 'PLANELYX_UI_BASE_URL=${PLANELYX_UI_BASE_URL:-http://localhost:4200}'
       - 'PLANELYX_KEYCLOAK_ADMIN_CLIENT_SECRET=${PLANELYX_KEYCLOAK_ADMIN_CLIENT_SECRET:-local-dev-secret}'
+      # Where the provisioning listener posts once a user registers. The api service below only
+      # runs under the `api` profile, so by default the API is on the host and Keycloak reaches
+      # it through the bridge gateway rather than by service name. Running the whole stack
+      # (`--profile api`) means overriding this to http://api:8080/internal/keycloak/user-registered.
+      - 'PLANELYX_PROVISIONING_URL=${PLANELYX_PROVISIONING_URL:-http://host.docker.internal:8080/internal/keycloak/user-registered}'
+      - 'PLANELYX_PROVISIONING_SECRET=${PLANELYX_PROVISIONING_SECRET:-local-dev-secret}'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     ports:
       - '8081:8080'
     volumes:
-      - './docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json'
-      - './docker/keycloak/themes:/opt/keycloak/themes'
+      # The same files the image already contains, mounted only so realm and theme edits show up
+      # without a rebuild. start-dev disables theme caching, so a refresh is enough. Not a second
+      # copy: both paths point into planelyx-auth.
+      - '../planelyx-auth/realm/realm-export.json:/opt/keycloak/data/import/realm-export.json'
+      - '../planelyx-auth/themes/planelyx:/opt/keycloak/themes/planelyx'
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,8 +81,11 @@ services:
       - 'POSTGRES_DB=${POSTGRES_DB:-planelyx}'
       - 'POSTGRES_USER=${POSTGRES_USER:-planelyx}'
       - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-planelyx}'
-      - 'KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/planelyx'
-      - 'KEYCLOAK_SERVER_URL=http://keycloak:8080'
+      # Both carry the /auth prefix that KC_HTTP_RELATIVE_PATH puts on the auth image. The issuer
+      # has to match the token's `iss` claim exactly; the server URL is a base Spring appends to.
+      - 'KEYCLOAK_ISSUER_URI=http://keycloak:8080/auth/realms/planelyx'
+      - 'KEYCLOAK_SERVER_URL=http://keycloak:8080/auth'
+      - 'PLANELYX_PROVISIONING_SECRET=${PLANELYX_PROVISIONING_SECRET:-local-dev-secret}'
       - 'KEYCLOAK_REALM=${KEYCLOAK_REALM:-planelyx}'
       - 'KEYCLOAK_ADMIN_CLIENT_ID=${KEYCLOAK_ADMIN_CLIENT_ID:-planelyx-api-admin}'
       - 'KEYCLOAK_ADMIN_CLIENT_SECRET=${PLANELYX_KEYCLOAK_ADMIN_CLIENT_SECRET:-local-dev-secret}'

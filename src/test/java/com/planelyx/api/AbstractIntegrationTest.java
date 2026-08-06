@@ -29,13 +29,13 @@ public abstract class AbstractIntegrationTest {
     /**
      * An owner set up the way a real one is.
      *
-     * Tests drive the services directly, so nothing else would run the provisioning that normally
-     * happens on a user's first authenticated request — and without it the owner has no categories
-     * at all, including the adjustment ones the corrections need.
+     * In production this is driven by Keycloak's registration callback. Tests have no Keycloak, so
+     * they call the same service directly — without it the owner has no categories at all,
+     * including the adjustment ones the corrections need.
      */
     protected UUID newOwner() {
         UUID ownerId = UUID.randomUUID();
-        userProvisioningService.ensureProvisioned(ownerId);
+        userProvisioningService.provision(ownerId);
 
         return ownerId;
     }

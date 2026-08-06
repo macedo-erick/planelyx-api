@@ -21,7 +21,6 @@ import com.planelyx.api.exception.NotFoundException;
 import com.planelyx.api.security.CurrentUser;
 import com.planelyx.api.security.SecurityConfig;
 import com.planelyx.api.service.CategoryService;
-import com.planelyx.api.service.UserProvisioningService;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -41,10 +40,6 @@ class CategoryControllerTest {
 
     @MockitoBean
     private CategoryService categoryService;
-
-    /** Pulled into the slice by {@link SecurityConfig}; nothing here exercises provisioning. */
-    @MockitoBean
-    private UserProvisioningService userProvisioningService;
 
     @Test
     void rejectsUnauthenticatedRequests() throws Exception {
