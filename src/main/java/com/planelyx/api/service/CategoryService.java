@@ -22,6 +22,11 @@ public class CategoryService {
         return categoryRepository.findByOwnerId(ownerId);
     }
 
+    /** The categories an owner can pick from, i.e. everything but the adjustment ones. */
+    public List<Category> findVisible(UUID ownerId) {
+        return categoryRepository.findVisibleByOwnerId(ownerId);
+    }
+
     public Category findById(UUID id, UUID ownerId) {
         return categoryRepository
                 .findByIdAndOwnerId(id, ownerId)

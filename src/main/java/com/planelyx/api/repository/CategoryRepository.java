@@ -17,6 +17,14 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
     List<Category> findByOwnerId(UUID ownerId);
 
     /**
+     * The categories an owner picks from: no adjustment categories, sorted for display so no
+     * caller needs to order them again.
+     */
+    @Query(
+            "select c from Category c where c.ownerId = :ownerId and c.system = false order by c.type asc, lower(c.name) asc")
+    List<Category> findVisibleByOwnerId(@Param("ownerId") UUID ownerId);
+
+    /**
      * The category the application files this owner's corrections against.
      *
      * Single-valued because {@code uq_category_template_system_type} allows one system template

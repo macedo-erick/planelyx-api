@@ -60,7 +60,7 @@ class CategoryControllerTest {
                 .name("Groceries")
                 .type(CategoryType.EXPENSE)
                 .build();
-        when(categoryService.findAll(ownerId)).thenReturn(List.of(category));
+        when(categoryService.findVisible(ownerId)).thenReturn(List.of(category));
 
         mockMvc.perform(get("/api/categories").with(jwt().jwt(jwt -> jwt.subject(ownerId.toString()))))
                 .andExpect(status().isOk())

@@ -30,7 +30,7 @@ public class CategoryController {
 
     @GetMapping
     public List<CategoryResponse> findAll() {
-        return categoryService.findAll(currentUser.ownerId()).stream()
+        return categoryService.findVisible(currentUser.ownerId()).stream()
                 .map(CategoryMapper::toResponse)
                 .toList();
     }
