@@ -3,6 +3,7 @@ package com.planelyx.api.web;
 import com.planelyx.api.domain.Invoice;
 import com.planelyx.api.domain.enums.InvoiceStatus;
 import com.planelyx.api.dto.InvoiceAdjustmentRequest;
+import com.planelyx.api.dto.InvoicePaymentRequest;
 import com.planelyx.api.dto.InvoiceResponse;
 import com.planelyx.api.dto.PageResponse;
 import com.planelyx.api.dto.TransactionResponse;
@@ -88,9 +89,15 @@ public class InvoiceController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Marks the invoice settled and posts the debit that takes the money out of an account.
+     *
+     * The body is optional: with none, the payment is dated on the due date and comes out of the
+     * account the card is billed against.
+     */
     @PostMapping("/{id}/pay")
-    public InvoiceResponse pay(@PathVariable UUID id) {
-        Invoice invoice = invoiceService.pay(id, currentUser.ownerId());
+    public InvoiceResponse pay(@PathVariable UUID id, @RequestBody(required = false) InvoicePaymentRequest request) {
+        Invoice invoice = invoiceService.pay(id, request, currentUser.ownerId());
 
         return InvoiceMapper.toResponse(invoice, invoiceService.derivedStatus(invoice));
     }

@@ -35,12 +35,18 @@ public class CascadeDeleteService {
     private final TransactionTemplateRepository transactionTemplateRepository;
 
     /**
-     * The card, its charges, the invoices those charges sat on, and the rules that generate them.
+     * The card, its charges, the settlements paying them off, the invoices they sat on, and the
+     * rules that generate them.
      *
      * Order matters and is the reverse of the references: a charge points at both an invoice and
      * the template that produced it, so charges go before either.
+     *
+     * The settlements need a pass of their own. They name the account the money came out of, not
+     * the card, so {@code deleteAllByCreditCardId} does not reach them — and left behind they
+     * would still point at invoices about to be removed.
      */
     public void deleteCreditCard(CreditCard card) {
+        transactionRepository.deleteAllByInvoiceCreditCardId(card.getId());
         transactionRepository.deleteAllByCreditCardId(card.getId());
         transactionRepository.flush();
 

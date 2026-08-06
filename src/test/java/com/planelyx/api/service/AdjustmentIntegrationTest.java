@@ -193,7 +193,7 @@ class AdjustmentIntegrationTest extends AbstractIntegrationTest {
     @Test
     void paidInvoicesRefuseAdjustment() {
         InvoiceFixture fixture = invoice(new BigDecimal("200.00"));
-        invoiceService.pay(fixture.invoice().getId(), fixture.ownerId());
+        invoiceService.pay(fixture.invoice().getId(), null, fixture.ownerId());
 
         assertThrows(
                 IllegalStateException.class,

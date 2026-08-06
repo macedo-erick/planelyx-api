@@ -2,6 +2,7 @@ package com.planelyx.api.service;
 
 import com.planelyx.api.domain.Transaction;
 import com.planelyx.api.domain.enums.CategoryType;
+import com.planelyx.api.domain.enums.SystemCategoryKey;
 import com.planelyx.api.domain.enums.TransactionKind;
 import com.planelyx.api.dto.BalanceAdjustmentRequest;
 import com.planelyx.api.dto.TransactionRequest;
@@ -78,7 +79,7 @@ public class BalanceAdjustmentService {
 
     private UUID adjustmentCategoryId(UUID ownerId, CategoryType type) {
         return categoryRepository
-                .findAdjustmentForOwner(ownerId, type)
+                .findByOwnerIdAndSystemKeyAndType(ownerId, SystemCategoryKey.ADJUSTMENT, type)
                 .orElseThrow(() -> new NotFoundException("Adjustment category is missing for owner: " + ownerId))
                 .getId();
     }

@@ -82,7 +82,10 @@ class FullFlowIntegrationTest extends AbstractIntegrationTest {
                         3),
                 ownerId);
 
+        // Scoped to this owner: the container is shared across the whole suite, so an unfiltered
+        // findAll() counts every other test's charges too.
         List<Transaction> generated = transactionRepository.findAll().stream()
+                .filter(transaction -> transaction.getOwnerId().equals(ownerId))
                 .filter(transaction -> transaction.getKind() == TransactionKind.CARD_CHARGE)
                 .toList();
         assertEquals(3, generated.size());
