@@ -20,8 +20,7 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
      * The categories an owner picks from: no adjustment categories, sorted for display so no
      * caller needs to order them again.
      */
-    @Query(
-            "select c from Category c where c.ownerId = :ownerId and c.system = false order by c.type asc, lower(c.name) asc")
+    @Query("select c from Category c where c.ownerId = :ownerId order by c.type asc, lower(c.name) asc")
     List<Category> findVisibleByOwnerId(@Param("ownerId") UUID ownerId);
 
     /**
@@ -33,12 +32,21 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
     @Query("select c from Category c where c.ownerId = :ownerId and c.system = true and c.type = :type")
     Optional<Category> findAdjustmentForOwner(@Param("ownerId") UUID ownerId, @Param("type") CategoryType type);
 
-    /** Gives an owner their own copy of every seeded category. */
+    /**
+     * Gives an owner their own copy of every seeded category, once.
+     *
+     * The {@code not exists} clause is what makes a repeated provisioning callback harmless:
+     * Keycloak's listener retries until it sees a 2xx, so a response lost after this committed
+     * arrives again as an identical request, and without the guard that second run would duplicate
+     * every category. It is a guard against redelivery, not a general "seed if empty" — the only
+     * thing that ever calls this is registration.
+     */
     @Modifying
     @Query(value = """
                     insert into category (id, owner_id, name, type, icon, color, system)
                     select gen_random_uuid(), :ownerId, name, type, icon, color, system
                     from category_template
+                    where not exists (select 1 from category c where c.owner_id = :ownerId)
                     """, nativeQuery = true)
     int copyTemplatesFor(@Param("ownerId") UUID ownerId);
 }

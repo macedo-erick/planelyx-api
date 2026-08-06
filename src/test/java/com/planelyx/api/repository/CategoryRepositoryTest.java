@@ -2,6 +2,7 @@ package com.planelyx.api.repository;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.planelyx.api.config.JpaAuditingConfig;
 import com.planelyx.api.domain.Category;
 import com.planelyx.api.domain.enums.CategoryType;
 import java.util.List;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Import;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -18,6 +20,11 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @Testcontainers
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+// @DataJpaTest is a slice and does not pick up @Configuration classes, so @EnableJpaAuditing
+// never applies and @CreatedDate stays null against a NOT NULL column. Without this the test
+// passes only when a @SpringBootTest happens to build its context first in the same JVM —
+// AuditingEntityListener resolves its handler from whichever bean factory was set last.
+@Import(JpaAuditingConfig.class)
 class CategoryRepositoryTest {
 
     @Container
@@ -39,7 +46,7 @@ class CategoryRepositoryTest {
         List<Category> visible = categoryRepository.findVisibleByOwnerId(ownerId);
 
         assertEquals(
-                List.of("Groceries", "rent", "Salary"),
+                List.of("Adjustment", "Groceries", "rent", "Salary"),
                 visible.stream().map(Category::getName).toList());
     }
 

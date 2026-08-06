@@ -46,11 +46,15 @@ class CategoryServiceIntegrationTest extends AbstractIntegrationTest {
         assertEquals(2, categories.stream().filter(Category::isSystem).count(), "one adjustment category per type");
     }
 
+    /**
+     * Keycloak's listener retries until it sees a 2xx, so a response lost on the way back arrives
+     * as an identical second callback. This is the case that would otherwise double every category.
+     */
     @Test
     void provisioningTwiceDoesNotDuplicateThem() {
         UUID ownerId = newOwner();
 
-        userProvisioningService.ensureProvisioned(ownerId);
+        userProvisioningService.provision(ownerId);
 
         assertEquals(SEEDED_COUNT, categoryService.findAll(ownerId).size());
     }
@@ -90,8 +94,9 @@ class CategoryServiceIntegrationTest extends AbstractIntegrationTest {
     }
 
     /**
-     * Provisioning is keyed on the user having been set up, not on their having categories, so
-     * clearing them out is a decision that sticks rather than one undone by the next request.
+     * Clearing out categories is a decision that sticks. Nothing seeds after registration, and even
+     * a stray callback would find the adjustment categories still there — those cannot be deleted,
+     * so an established owner never looks empty to the guard on {@code copyTemplatesFor}.
      */
     @Test
     void deletingEveryCategoryDoesNotSeedThemAgain() {
@@ -101,7 +106,7 @@ class CategoryServiceIntegrationTest extends AbstractIntegrationTest {
                 .filter(category -> !category.isSystem())
                 .forEach(category -> categoryService.delete(category.getId(), ownerId));
 
-        userProvisioningService.ensureProvisioned(ownerId);
+        userProvisioningService.provision(ownerId);
 
         List<Category> remaining = categoryService.findAll(ownerId);
 

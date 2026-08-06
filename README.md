@@ -16,6 +16,10 @@ JWT (OAuth2 Resource Server).
 
 - JDK 21
 - Docker + Docker Compose
+- [`planelyx-auth`](../planelyx-auth) checked out **beside this repo** — `compose.yaml` builds the
+  Keycloak image from it. This repository holds no Keycloak configuration of its own: the realm, the
+  login theme and the provisioning event listener all live there, in one copy, used by both local
+  development and production.
 
 ## 1. Configure environment
 
@@ -31,27 +35,49 @@ The defaults work out of the box for local development; edit `.env` if you want 
 docker compose up -d
 ```
 
-This starts `postgres` and `keycloak` (the `api` service is opt-in, see below). Keycloak auto-imports a
-`planelyx` realm with a public client `planelyx-api` and a demo user (`demo` / `Demo@Fintrack1`) — no manual setup
-needed in the Keycloak admin console.
+This starts `postgres` and `keycloak` (the `api` service is opt-in, see below). The first run builds the
+auth image, which includes compiling the event listener; later runs use the cache. Keycloak serves under
+`/auth` — `http://localhost:8081/auth` — because `KC_HTTP_RELATIVE_PATH` is baked into that image so the
+issuer matches production.
 
-Self-registration is enabled: the login page shows a "Register" link, and new users are subject to the realm
-password policy — at least 12 characters with an uppercase letter, a lowercase letter, a digit and a special
-character, and not equal to the username or email. Email verification is off, since the realm has no SMTP
-server configured.
+Keycloak auto-imports the `planelyx` realm with a public client `planelyx-api` — no manual setup needed in
+the admin console.
+
+**There is no seeded user.** Create your account through the app's "Register" link. Default categories are
+provisioned from Keycloak's registration event (see below), and realm import does not raise events, so an
+imported account would arrive with no categories. New users are subject to the realm password policy — at
+least 12 characters with an uppercase letter, a lowercase letter, a digit and a special character, and not
+equal to the username or email. Email verification is off, since the realm has no SMTP server configured.
+
+### How a new user gets their categories
+
+Registering fires Keycloak's `REGISTER` event. The `planelyx-provisioning` event listener — built from
+`planelyx-auth/spi` and baked into the image — signs a small JSON payload with `PLANELYX_PROVISIONING_SECRET`
+and posts it to `POST /internal/keycloak/user-registered`, which copies `category_template` into that owner's
+categories. It retries at 1s, 4s and 15s before giving up with an ERROR carrying the user id.
+
+That endpoint is the only one in the API that answers without a bearer token. It is not routed by the
+production reverse proxy, so it is reachable only from inside the Compose network, and it verifies the HMAC
+regardless.
+
+With the API running from the IDE (the usual setup), Keycloak reaches it at `host.docker.internal:8080`. If
+you run the API in Compose as well, override `PLANELYX_PROVISIONING_URL` — see `.env.example`.
 
 The client's redirect URIs and web origins are scoped to the Angular app's origin rather than `*`. That origin
 defaults to `http://localhost:4200` and can be overridden by setting `PLANELYX_UI_ORIGIN` on the `keycloak`
 container (Keycloak substitutes `${VAR:default}` placeholders at realm-import time).
 
 Note that `--import-realm` only imports when the realm does not yet exist. If you already have a `planelyx`
-realm in the `keycloak` database, edits to `realm-export.json` are ignored on restart — change the setting in
-the admin console instead, or recreate the realm.
+realm in the `keycloak` database, edits to `planelyx-auth/realm/realm-export.json` are ignored on restart —
+change the setting in the admin console instead, or recreate the realm with
+`docker compose down -v && docker compose up -d` (this destroys your local account, so you will register
+again).
 
 ### Login theme
 
 Keycloak's own login, registration and account-recovery screens are branded by the `planelyx` theme in
-`docker/keycloak/themes/planelyx`, mounted into the container and selected via the realm's `loginTheme`.
+`planelyx-auth/themes/planelyx`, baked into the auth image, also bind-mounted by `compose.yaml` so edits
+show up without a rebuild, and selected via the realm's `loginTheme`.
 
 It inherits from Keycloak's built-in `keycloak.v2` theme and adds a single stylesheet, so no FreeMarker
 templates are copied and upgrades stay cheap. The palette mirrors the Angular app's PrimeNG "Aura" preset
@@ -85,19 +111,22 @@ docker compose --profile api up --build
 
 ## 4. Get an access token
 
+Register through the UI first — there is no seeded account. Then, with your own credentials:
+
 ```bash
-curl -s -X POST http://localhost:8081/realms/planelyx/protocol/openid-connect/token \
+curl -s -X POST http://localhost:8081/auth/realms/planelyx/protocol/openid-connect/token \
   -d 'client_id=planelyx-api' \
   -d 'grant_type=password' \
-  -d 'username=demo' \
-  -d 'password=Demo@Fintrack1' | jq -r .access_token
+  -d 'username=YOUR_USERNAME' \
+  -d 'password=YOUR_PASSWORD' | jq -r .access_token
 ```
 
 Use the resulting token as a bearer token against the API, e.g.:
 
 ```bash
-TOKEN=$(curl -s -X POST http://localhost:8081/realms/planelyx/protocol/openid-connect/token \
-  -d 'client_id=planelyx-api' -d 'grant_type=password' -d 'username=demo' -d 'password=Demo@Fintrack1' \
+TOKEN=$(curl -s -X POST http://localhost:8081/auth/realms/planelyx/protocol/openid-connect/token \
+  -d 'client_id=planelyx-api' -d 'grant_type=password' \
+  -d 'username=YOUR_USERNAME' -d 'password=YOUR_PASSWORD' \
   | jq -r .access_token)
 
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/bank-accounts
