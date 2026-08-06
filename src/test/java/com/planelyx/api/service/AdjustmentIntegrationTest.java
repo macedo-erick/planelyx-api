@@ -9,7 +9,6 @@ import com.planelyx.api.domain.BankAccount;
 import com.planelyx.api.domain.Category;
 import com.planelyx.api.domain.CreditCard;
 import com.planelyx.api.domain.Invoice;
-import com.planelyx.api.domain.SystemCategories;
 import com.planelyx.api.domain.Transaction;
 import com.planelyx.api.domain.enums.AccountType;
 import com.planelyx.api.domain.enums.CategoryType;
@@ -72,7 +71,8 @@ class AdjustmentIntegrationTest extends AbstractIntegrationTest {
         assertEquals(TransactionKind.ACCOUNT_CREDIT, adjustment.getKind());
         assertEquals(0, new BigDecimal("150.00").compareTo(adjustment.getAmount()));
         assertEquals(
-                SystemCategories.ADJUSTMENT_INCOME, adjustment.getCategory().getId());
+                adjustmentCategory(fixture.ownerId(), CategoryType.INCOME).getId(),
+                adjustment.getCategory().getId());
         assertBalance(fixture, "250.00");
     }
 
@@ -85,7 +85,8 @@ class AdjustmentIntegrationTest extends AbstractIntegrationTest {
         assertEquals(TransactionKind.ACCOUNT_DEBIT, adjustment.getKind());
         assertEquals(0, new BigDecimal("60.00").compareTo(adjustment.getAmount()));
         assertEquals(
-                SystemCategories.ADJUSTMENT_EXPENSE, adjustment.getCategory().getId());
+                adjustmentCategory(fixture.ownerId(), CategoryType.EXPENSE).getId(),
+                adjustment.getCategory().getId());
         assertBalance(fixture, "40.00");
     }
 
@@ -215,10 +216,13 @@ class AdjustmentIntegrationTest extends AbstractIntegrationTest {
     }
 
     private Transaction adjustmentCharge(InvoiceFixture fixture) {
+        UUID adjustmentId =
+                adjustmentCategory(fixture.ownerId(), CategoryType.EXPENSE).getId();
+
         List<Transaction> charges = transactionRepository
                 .findAllByInvoiceId(fixture.invoice().getId())
                 .stream()
-                .filter(charge -> charge.getCategory().getId().equals(SystemCategories.ADJUSTMENT_EXPENSE))
+                .filter(charge -> charge.getCategory().getId().equals(adjustmentId))
                 .toList();
 
         assertEquals(1, charges.size(), "exactly one adjustment charge is expected");
@@ -229,7 +233,7 @@ class AdjustmentIntegrationTest extends AbstractIntegrationTest {
     private record Fixture(UUID ownerId, BankAccount account, Category category) {}
 
     private Fixture account(BigDecimal initialBalance) {
-        UUID ownerId = UUID.randomUUID();
+        UUID ownerId = newOwner();
 
         BankAccount account = bankAccountService.create(
                 new BankAccountRequest("Checking", "Test Bank", AccountType.CHECKING, initialBalance, "BRL"), ownerId);

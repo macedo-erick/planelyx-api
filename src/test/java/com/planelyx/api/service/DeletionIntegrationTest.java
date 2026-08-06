@@ -9,7 +9,6 @@ import com.planelyx.api.domain.BankAccount;
 import com.planelyx.api.domain.Category;
 import com.planelyx.api.domain.CreditCard;
 import com.planelyx.api.domain.Invoice;
-import com.planelyx.api.domain.SystemCategories;
 import com.planelyx.api.domain.Transaction;
 import com.planelyx.api.domain.enums.AccountType;
 import com.planelyx.api.domain.enums.CategoryType;
@@ -152,7 +151,7 @@ class DeletionIntegrationTest extends AbstractIntegrationTest {
                 TransactionKind.ACCOUNT_DEBIT,
                 fixture.account().getId(),
                 null,
-                SystemCategories.ADJUSTMENT_EXPENSE,
+                adjustmentCategory(fixture.ownerId(), CategoryType.EXPENSE).getId(),
                 new BigDecimal("5.00"),
                 LocalDate.now(),
                 "Sneaking one in");
@@ -182,7 +181,7 @@ class DeletionIntegrationTest extends AbstractIntegrationTest {
 
     /** A fresh owner with an account, a card drawn on it, and one charge sitting on an invoice. */
     private Fixture cardWithCharge(BigDecimal amount) {
-        UUID ownerId = UUID.randomUUID();
+        UUID ownerId = newOwner();
 
         BankAccount account = bankAccountService.create(
                 new BankAccountRequest("Checking", "Test Bank", AccountType.CHECKING, BigDecimal.ZERO, "BRL"), ownerId);

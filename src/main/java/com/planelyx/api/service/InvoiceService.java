@@ -6,8 +6,8 @@ import static org.springframework.util.StringUtils.hasText;
 import com.planelyx.api.domain.Category;
 import com.planelyx.api.domain.CreditCard;
 import com.planelyx.api.domain.Invoice;
-import com.planelyx.api.domain.SystemCategories;
 import com.planelyx.api.domain.Transaction;
+import com.planelyx.api.domain.enums.CategoryType;
 import com.planelyx.api.domain.enums.InvoiceStatus;
 import com.planelyx.api.domain.enums.TransactionKind;
 import com.planelyx.api.exception.NotFoundException;
@@ -226,7 +226,7 @@ public class InvoiceService {
                 .kind(TransactionKind.CARD_CHARGE)
                 .creditCard(invoice.getCreditCard())
                 .invoice(invoice)
-                .category(adjustmentCategory())
+                .category(adjustmentCategory(ownerId))
                 .amount(delta)
                 .transactionDate(adjustmentDate(invoice))
                 .description(hasText(description) ? description : DEFAULT_ADJUSTMENT_DESCRIPTION)
@@ -252,10 +252,10 @@ public class InvoiceService {
         return today.isAfter(invoice.getBillingPeriodEnd()) ? invoice.getBillingPeriodEnd() : today;
     }
 
-    private Category adjustmentCategory() {
+    private Category adjustmentCategory(UUID ownerId) {
         return categoryRepository
-                .findById(SystemCategories.ADJUSTMENT_EXPENSE)
-                .orElseThrow(() -> new NotFoundException("Adjustment category is missing — check migration V11"));
+                .findAdjustmentForOwner(ownerId, CategoryType.EXPENSE)
+                .orElseThrow(() -> new NotFoundException("Adjustment category is missing for owner: " + ownerId));
     }
 
     public Invoice unpay(UUID id, UUID ownerId) {

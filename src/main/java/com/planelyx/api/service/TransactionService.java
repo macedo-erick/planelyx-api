@@ -7,7 +7,6 @@ import com.planelyx.api.domain.BankAccount;
 import com.planelyx.api.domain.Category;
 import com.planelyx.api.domain.CreditCard;
 import com.planelyx.api.domain.Invoice;
-import com.planelyx.api.domain.SystemCategories;
 import com.planelyx.api.domain.Transaction;
 import com.planelyx.api.domain.enums.TransactionKind;
 import com.planelyx.api.domain.enums.TransactionScope;
@@ -179,7 +178,7 @@ public class TransactionService {
     }
 
     public Transaction create(TransactionRequest request, UUID ownerId) {
-        rejectSystemCategory(request.categoryId());
+        rejectSystemCategory(categoryService.findById(request.categoryId(), ownerId));
 
         return createCorrection(request, ownerId);
     }
@@ -230,10 +229,10 @@ public class TransactionService {
      * monthly series onto a single day.
      */
     public Transaction update(UUID id, TransactionUpdateRequest request, UUID ownerId) {
-        rejectSystemCategory(request.categoryId());
-
         Transaction target = findById(id, ownerId);
         Category category = categoryService.findById(request.categoryId(), ownerId);
+        rejectSystemCategory(category);
+
         List<Transaction> affected = inScope(target, request.scopeOrDefault());
 
         for (Transaction transaction : affected) {
@@ -304,9 +303,9 @@ public class TransactionService {
      * directly — a hand-written transaction wearing that label would read as reconciled when
      * nothing was reconciled. Clients keep them out of their pickers; this is the backstop.
      */
-    private void rejectSystemCategory(UUID categoryId) {
-        if (SystemCategories.contains(categoryId)) {
-            throw new IllegalArgumentException("Category is reserved for adjustments: " + categoryId);
+    private void rejectSystemCategory(Category category) {
+        if (category.isSystem()) {
+            throw new IllegalArgumentException("Category is reserved for adjustments: " + category.getId());
         }
     }
 

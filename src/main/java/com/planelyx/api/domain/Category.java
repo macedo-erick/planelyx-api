@@ -29,7 +29,7 @@ public class Category extends Auditable {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "owner_id")
+    @Column(name = "owner_id", nullable = false)
     private UUID ownerId;
 
     @Column(nullable = false)
@@ -42,4 +42,14 @@ public class Category extends Auditable {
     private String icon;
 
     private String color;
+
+    /**
+     * Whether the application owns this category rather than the user. Every user gets their own
+     * copy of the adjustment categories, so the flag is what identifies one — it is both how the
+     * corrections in {@link com.planelyx.api.service.BalanceAdjustmentService} and
+     * {@link com.planelyx.api.service.InvoiceService} find the category to file against, and why
+     * the API refuses to let a user edit, delete, or hand-file a transaction against it.
+     */
+    @Column(nullable = false)
+    private boolean system;
 }

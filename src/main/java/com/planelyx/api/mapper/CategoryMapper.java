@@ -1,7 +1,6 @@
 package com.planelyx.api.mapper;
 
 import com.planelyx.api.domain.Category;
-import com.planelyx.api.domain.SystemCategories;
 import com.planelyx.api.dto.CategoryResponse;
 
 public final class CategoryMapper {
@@ -15,7 +14,7 @@ public final class CategoryMapper {
                 category.getType(),
                 category.getIcon(),
                 category.getColor(),
-                SystemCategories.contains(category.getId()),
+                category.isSystem(),
                 category.getCreatedAt());
     }
 }
