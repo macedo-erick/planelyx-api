@@ -38,7 +38,9 @@ class CategoryRepositoryTest {
 
         List<Category> visible = categoryRepository.findVisibleByOwnerId(ownerId);
 
-        assertEquals(List.of("Groceries", "rent", "Salary"), visible.stream().map(Category::getName).toList());
+        assertEquals(
+                List.of("Groceries", "rent", "Salary"),
+                visible.stream().map(Category::getName).toList());
     }
 
     private Category category(UUID ownerId, String name, CategoryType type, boolean system) {

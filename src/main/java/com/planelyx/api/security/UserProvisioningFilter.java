@@ -28,9 +28,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class UserProvisioningFilter extends OncePerRequestFilter {
 
     /**
-     * Users this instance has already provisioned. Only an optimisation — {@code app_user} is the
-     * real guard — so it never needs to be shared between instances or survive a restart, and the
-     * steady-state cost of the filter stays a set lookup.
+     * Users this instance has already provisioned. Only an optimisation — {@code provisioned_owner}
+     * is the real guard — so it never needs to be shared between instances or survive a restart,
+     * and the steady-state cost of the filter stays a set lookup.
      */
     private final Set<UUID> provisioned = ConcurrentHashMap.newKeySet();
 
