@@ -30,6 +30,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID>,
 
     List<Transaction> findAllByTemplateId(UUID templateId);
 
+    void deleteAllByCreditCardId(UUID creditCardId);
+
+    void deleteAllByBankAccountId(UUID bankAccountId);
+
     @Query("select coalesce(sum(t.amount), 0) from Transaction t where t.invoice.id = :invoiceId")
     BigDecimal sumAmountByInvoiceId(UUID invoiceId);
 

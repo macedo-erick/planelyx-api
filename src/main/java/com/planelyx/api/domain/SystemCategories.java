@@ -1,6 +1,7 @@
 package com.planelyx.api.domain;
 
 import com.planelyx.api.domain.enums.CategoryType;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -18,9 +19,20 @@ public final class SystemCategories {
     /** Backs an upward correction to an account balance. */
     public static final UUID ADJUSTMENT_INCOME = UUID.fromString("00000000-0000-0000-0000-00000000ad02");
 
+    private static final Set<UUID> IDS = Set.of(ADJUSTMENT_EXPENSE, ADJUSTMENT_INCOME);
+
     private SystemCategories() {}
 
     public static UUID adjustmentFor(CategoryType type) {
         return type == CategoryType.INCOME ? ADJUSTMENT_INCOME : ADJUSTMENT_EXPENSE;
+    }
+
+    /**
+     * Whether the application owns this category. Only it may file a transaction against one:
+     * they exist to mark a correction, so a hand-written transaction wearing the label would make
+     * a figure the app never touched look like one it had reconciled.
+     */
+    public static boolean contains(UUID categoryId) {
+        return IDS.contains(categoryId);
     }
 }

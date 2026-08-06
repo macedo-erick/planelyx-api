@@ -19,6 +19,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
 
     Optional<Invoice> findByIdAndCreditCardOwnerId(UUID id, UUID ownerId);
 
+    void deleteAllByCreditCardId(UUID creditCardId);
+
     /**
      * How much of a card's limit is still committed. The stored status is only ever PAID once the
      * invoice has been settled — OPEN vs CLOSED is derived from the date at read time — so filtering

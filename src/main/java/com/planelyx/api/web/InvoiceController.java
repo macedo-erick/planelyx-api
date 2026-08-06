@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -72,9 +74,18 @@ public class InvoiceController {
      */
     @PostMapping("/{id}/adjust")
     public InvoiceResponse adjust(@PathVariable UUID id, @Valid @RequestBody InvoiceAdjustmentRequest request) {
-        Invoice invoice = invoiceService.adjust(id, request.targetAmount(), currentUser.ownerId());
+        Invoice invoice =
+                invoiceService.adjust(id, request.targetAmount(), request.description(), currentUser.ownerId());
 
         return InvoiceMapper.toResponse(invoice, invoiceService.derivedStatus(invoice));
+    }
+
+    /** Removes the invoice and every charge on it. */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        invoiceService.delete(id, currentUser.ownerId());
+
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/pay")

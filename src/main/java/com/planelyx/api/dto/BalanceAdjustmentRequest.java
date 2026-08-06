@@ -1,6 +1,7 @@
 package com.planelyx.api.dto;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -13,4 +14,10 @@ import java.time.LocalDate;
 public record BalanceAdjustmentRequest(
         @NotNull BigDecimal targetBalance,
         /** Absent means today. The balance it corrects is the one as of this date. */
-        LocalDate transactionDate) {}
+        LocalDate transactionDate,
+        /**
+         * What the resulting transaction should be called. Absent falls back to English: the API
+         * holds no translations, so only a caller that knows the user's language can name it
+         * properly.
+         */
+        @Size(max = 255) String description) {}

@@ -14,4 +14,8 @@ public interface TransactionTemplateRepository extends JpaRepository<Transaction
     Optional<TransactionTemplate> findByIdAndOwnerId(UUID id, UUID ownerId);
 
     List<TransactionTemplate> findAllByActiveTrueAndRecurrenceType(RecurrenceType recurrenceType);
+
+    void deleteAllByCreditCardId(UUID creditCardId);
+
+    void deleteAllByBankAccountId(UUID bankAccountId);
 }
