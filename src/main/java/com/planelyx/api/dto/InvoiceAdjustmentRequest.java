@@ -10,11 +10,10 @@ import java.math.BigDecimal;
  *
  * The difference against the current total becomes an adjustment charge on the invoice, so the
  * caller never has to work out a delta itself.
+ *
+ * An absent description falls back to English: the API holds no translations, so only a caller
+ * that knows the user's language can name that charge properly.
  */
 public record InvoiceAdjustmentRequest(
         @NotNull @PositiveOrZero BigDecimal targetAmount,
-        /**
-         * What the resulting charge should be called. Absent falls back to English: the API holds no
-         * translations, so only a caller that knows the user's language can name it properly.
-         */
         @Size(max = 255) String description) {}

@@ -17,6 +17,17 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * A category, whether the user's own or one the application owns.
+ *
+ * {@code system} marks the latter. Every user gets their own copy of the system categories, so the
+ * flag is what identifies one: it is why the API refuses to let a user edit, delete, or hand-file a
+ * transaction against it, and how a client knows to keep it out of its picker while still rendering
+ * it on the rows that use it. {@code systemKey} says which one it is, so the app can look one up by
+ * role rather than by name — the flag alone stopped being enough once there was more than one
+ * system category of the same type, and a name cannot stand in for it, being the thing a client
+ * translates.
+ */
 @Entity
 @Table(name = "category")
 @Getter
@@ -44,22 +55,9 @@ public class Category extends Auditable {
 
     private String color;
 
-    /**
-     * Whether the application owns this category rather than the user. Every user gets their own
-     * copy of the system categories, so the flag is what identifies one: it is why the API refuses
-     * to let a user edit, delete, or hand-file a transaction against it, and how the client knows
-     * to keep it out of its picker while still being able to render it on the rows that use it.
-     */
     @Column(nullable = false)
     private boolean system;
 
-    /**
-     * Which system category this is, for the app to look one up by role rather than by name.
-     *
-     * Null on a user's own categories. The flag alone stopped being enough once there was more
-     * than one system category of the same type, and the name cannot stand in for it — a name is
-     * what a client translates, as {@code V11__seed_adjustment_categories.sql} already noted.
-     */
     @Enumerated(EnumType.STRING)
     @Column(name = "system_key")
     private SystemCategoryKey systemKey;

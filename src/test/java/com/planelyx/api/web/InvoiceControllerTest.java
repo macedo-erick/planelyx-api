@@ -58,7 +58,6 @@ class InvoiceControllerTest {
 
         mockMvc.perform(get("/api/invoices").with(jwt().jwt(jwt -> jwt.subject(OWNER_ID.toString()))))
                 .andExpect(status().isOk())
-                // Closes 28 Aug, paid 5 Sep — September is the month it is known by.
                 .andExpect(jsonPath("$[0].referenceMonth").value("2026-09"))
                 .andExpect(jsonPath("$[0].billingPeriodEnd").value("2026-08-28"))
                 .andExpect(jsonPath("$[0].dueDate").value("2026-09-05"));

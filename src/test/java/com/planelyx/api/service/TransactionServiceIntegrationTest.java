@@ -185,7 +185,6 @@ class TransactionServiceIntegrationTest extends AbstractIntegrationTest {
         TransactionSummaryResponse summary =
                 transactionService.summarize(fixture.ownerId(), null, null, null, null, null, null);
 
-        // seed(3): one 100.00 credit, two 10.00 debits.
         assertEquals(0, new BigDecimal("100.00").compareTo(summary.totalIncome()));
         assertEquals(0, new BigDecimal("20.00").compareTo(summary.totalExpense()));
         assertEquals(0, new BigDecimal("80.00").compareTo(summary.net()));

@@ -67,7 +67,6 @@ class TemplateOccurrenceGeneratorTest {
         assertEquals(3, template.getOccurrencesGenerated());
         assertEquals(false, template.isActive());
 
-        // The entries walk forward a month at a time, but the purchase happened once, in January.
         assertEquals(LocalDate.of(2026, 1, 1), saved.get(0).getPurchaseDate());
         assertEquals(LocalDate.of(2026, 1, 1), saved.get(1).getPurchaseDate());
         assertEquals(LocalDate.of(2026, 1, 1), saved.get(2).getPurchaseDate());
@@ -105,7 +104,6 @@ class TemplateOccurrenceGeneratorTest {
         assertEquals(new BigDecimal("50.00"), savedTransactions.get(1).getAmount());
         assertEquals(LocalDate.of(2026, 2, 15), savedTransactions.get(1).getTransactionDate());
 
-        // A subscription renews rather than being bought once, so each month stands on its own.
         assertEquals(LocalDate.of(2026, 2, 15), savedTransactions.get(1).getPurchaseDate());
     }
 }

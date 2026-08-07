@@ -9,10 +9,12 @@ import java.time.YearMonth;
 import java.util.UUID;
 
 /**
- * @param referenceMonth the month the invoice is known by — the month it falls due in, not the one
- *     it closes in. A card closing on the 28th and due on the 5th produces a period running
- *     29 Jul – 28 Aug that everyone calls the September invoice, because that is when it is paid.
- *     Derived here so no screen has to work it out from the dates and reach a different answer.
+ * A card invoice as the client reads it.
+ *
+ * {@code referenceMonth} is the month it is known by — the month it falls due in, not the one it
+ * closes in. A card closing on the 28th and due on the 5th produces a period running 29 Jul –
+ * 28 Aug that everyone calls the September invoice, because that is when it is paid. Derived here
+ * so no screen has to work it out from the dates and reach a different answer.
  */
 public record InvoiceResponse(
         UUID id,

@@ -84,8 +84,6 @@ public class KeycloakEventController {
 
         userProvisioningService.provision(event.userId());
 
-        // Accepted rather than OK: nothing here is the caller's to act on, and Keycloak only ever
-        // checks whether the response was a 2xx.
         return ResponseEntity.accepted().build();
     }
 

@@ -66,9 +66,6 @@ public class TemplateOccurrenceGenerator {
         LocalDate occurrenceDate = template.getStartDate().plusMonths(occurrenceNumber - 1L);
         BigDecimal amount = resolveAmount(template, occurrenceNumber);
 
-        // Only an installment is one purchase spread across several entries, so only there does the
-        // purchase date differ from the occurrence. Every other rule has a start date too, but on a
-        // monthly subscription that is when the rule began, not when this month's charge was made.
         LocalDate purchaseDate = installment ? template.getStartDate() : occurrenceDate;
 
         Transaction transaction = Transaction.builder()
@@ -83,8 +80,6 @@ public class TemplateOccurrenceGenerator {
                 .transactionDate(occurrenceDate)
                 .purchaseDate(purchaseDate)
                 .description(template.getDescription())
-                // A rule materialises months of occurrences at once, so most of them are bills that
-                // have not been paid yet. That is what the dashboard reminds the owner of.
                 .paid(TransactionService.settledOnCreation(template.getKind(), occurrenceDate))
                 .build();
 

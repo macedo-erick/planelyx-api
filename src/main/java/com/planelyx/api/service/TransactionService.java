@@ -147,9 +147,6 @@ public class TransactionService {
             if (rowKind == TransactionKind.ACCOUNT_CREDIT) {
                 income = income.add(total);
             } else if (rowKind != TransactionKind.INVOICE_PAYMENT) {
-                // A settlement moves the balance but is not spending — the charges it pays off
-                // were already counted. Left in, it would report the same money twice and put
-                // this summary at odds with the dashboard.
                 expense = expense.add(total);
             }
         }
@@ -239,7 +236,6 @@ public class TransactionService {
                 .category(category)
                 .amount(request.amount())
                 .transactionDate(request.transactionDate())
-                // Nothing posted directly is spread over time, so the entry is the purchase.
                 .purchaseDate(request.transactionDate())
                 .description(request.description())
                 .paid(settledOnCreation(request));
@@ -307,8 +303,6 @@ public class TransactionService {
 
         List<Transaction> affected = inScope(target, scope);
 
-        // Collected before the delete: reading getInvoice() off a removed entity afterwards is
-        // not safe, and the totals still have to be recomputed.
         Set<UUID> invoiceIds = affected.stream()
                 .map(Transaction::getInvoice)
                 .filter(Objects::nonNull)
@@ -322,8 +316,6 @@ public class TransactionService {
             invoiceService.recomputeTotal(invoiceId);
         }
 
-        // Anything reaching forward must also stop the generator, or the monthly top-up job
-        // simply recreates what was just removed.
         if (scope != TransactionScope.SINGLE && nonNull(target.getTemplate())) {
             transactionTemplateService.deactivate(target.getTemplate().getId(), ownerId);
         }

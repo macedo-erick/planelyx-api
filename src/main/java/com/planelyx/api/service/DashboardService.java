@@ -50,8 +50,6 @@ public class DashboardService {
         LocalDate periodStart = month.atDay(1);
         LocalDate periodEnd = month.atEndOfMonth();
 
-        // Each of these hits the database, so they are resolved once and reused rather than
-        // recomputed per response field.
         List<DashboardResponse.AccountBalance> balances = accountBalances(ownerId, periodEnd);
         List<TransactionRepository.KindTotal> movement =
                 transactionRepository.sumByKindInMonthDue(ownerId, periodStart, periodEnd);
