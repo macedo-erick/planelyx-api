@@ -80,6 +80,22 @@ public class TransactionService {
         return kind != TransactionKind.ACCOUNT_DEBIT || !date.isAfter(LocalDate.now());
     }
 
+    /**
+     * The same, letting the caller override it — filing a bill due today that has not been paid, or
+     * recording one that has.
+     *
+     * Only on an account debit. Anything else is settled the moment it is written whatever the
+     * request says, so honouring {@code paid} there would let a client mark a card charge unpaid
+     * and have it sit on a reminder it can never be taken off, its invoice being what settles it.
+     */
+    private static boolean settledOnCreation(TransactionRequest request) {
+        if (request.kind() == TransactionKind.ACCOUNT_DEBIT && nonNull(request.paid())) {
+            return request.paid();
+        }
+
+        return settledOnCreation(request.kind(), request.transactionDate());
+    }
+
     public Page<Transaction> findAll(
             UUID ownerId,
             UUID bankAccountId,
@@ -226,7 +242,7 @@ public class TransactionService {
                 // Nothing posted directly is spread over time, so the entry is the purchase.
                 .purchaseDate(request.transactionDate())
                 .description(request.description())
-                .paid(settledOnCreation(request.kind(), request.transactionDate()));
+                .paid(settledOnCreation(request));
 
         if (request.kind() == TransactionKind.CARD_CHARGE) {
             CreditCard card = creditCardService.findById(request.creditCardId(), ownerId);

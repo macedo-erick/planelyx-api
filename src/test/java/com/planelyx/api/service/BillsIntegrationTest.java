@@ -200,6 +200,59 @@ class BillsIntegrationTest extends AbstractIntegrationTest {
                 () -> transactionService.markPaid(settlementId, true, fixture.ownerId()));
     }
 
+    /**
+     * Filing a bill that is due today and has not been paid, in the one call that creates it.
+     *
+     * The date rule would call this one paid. The caller knows better, and says so on the way in
+     * rather than having to correct the row afterwards.
+     */
+    @Test
+    void theCallerCanSayABillIsNotPaidYet() {
+        Fixture fixture = base();
+
+        Transaction bill = transactionService.create(
+                new TransactionRequest(
+                        TransactionKind.ACCOUNT_DEBIT,
+                        fixture.account().getId(),
+                        null,
+                        fixture.category().getId(),
+                        new BigDecimal("300.00"),
+                        LocalDate.now(),
+                        "Water",
+                        false),
+                fixture.ownerId());
+
+        assertFalse(bill.isPaid());
+    }
+
+    /**
+     * And is refused it on a card charge, whatever it asks for.
+     *
+     * A charge is settled through its invoice, all at once. One written unpaid would sit on a
+     * reminder with no way to take it off, since ticking a card charge off is refused too.
+     */
+    @Test
+    void aCardChargeIsPaidWhateverTheCallerAsksFor() {
+        Fixture fixture = base();
+        CreditCard card = creditCardService.create(
+                new CreditCardRequest(fixture.account().getId(), "Gold", "VISA", new BigDecimal("5000.00"), 28, 5),
+                fixture.ownerId());
+
+        Transaction charge = transactionService.create(
+                new TransactionRequest(
+                        TransactionKind.CARD_CHARGE,
+                        null,
+                        card.getId(),
+                        fixture.category().getId(),
+                        new BigDecimal("300.00"),
+                        LocalDate.now(),
+                        "Purchase",
+                        false),
+                fixture.ownerId());
+
+        assertTrue(charge.isPaid());
+    }
+
     /** A debit dated today or earlier is being recorded after the fact, so it is already paid. */
     @Test
     void aDebitRecordedAfterTheFactIsAlreadyPaid() {
