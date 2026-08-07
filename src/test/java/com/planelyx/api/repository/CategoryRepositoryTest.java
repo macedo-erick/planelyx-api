@@ -20,10 +20,6 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @Testcontainers
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-// @DataJpaTest is a slice and does not pick up @Configuration classes, so @EnableJpaAuditing
-// never applies and @CreatedDate stays null against a NOT NULL column. Without this the test
-// passes only when a @SpringBootTest happens to build its context first in the same JVM —
-// AuditingEntityListener resolves its handler from whichever bean factory was set last.
 @Import(JpaAuditingConfig.class)
 class CategoryRepositoryTest {
 

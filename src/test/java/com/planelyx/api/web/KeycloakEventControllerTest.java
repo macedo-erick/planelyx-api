@@ -34,9 +34,6 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @WebMvcTest(KeycloakEventController.class)
 @Import({SecurityConfig.class, ProvisioningSignatureVerifier.class})
-// Set as a property rather than as a bean: PlanelyxApplication already registers
-// ProvisioningProperties via @EnableConfigurationProperties, and a second one of the same type
-// makes the injection ambiguous.
 @TestPropertySource(properties = "planelyx.provisioning.webhook-secret=" + KeycloakEventControllerTest.SECRET)
 class KeycloakEventControllerTest {
 
@@ -87,7 +84,6 @@ class KeycloakEventControllerTest {
         UUID userId = UUID.randomUUID();
         String body = payload(userId, System.currentTimeMillis());
         String signature = sign(body);
-        // Flip the last hex digit, whatever it happens to be.
         String tampered = signature.substring(0, signature.length() - 1) + (signature.endsWith("0") ? '1' : '0');
 
         mockMvc.perform(post("/internal/keycloak/user-registered")
