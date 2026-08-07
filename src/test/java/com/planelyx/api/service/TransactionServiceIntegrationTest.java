@@ -103,6 +103,62 @@ class TransactionServiceIntegrationTest extends AbstractIntegrationTest {
         assertEquals(6, Set.copyOf(seen).size(), "a row must not repeat across pages");
     }
 
+    /**
+     * The period filter still selects on the entry's own date, so August keeps showing the
+     * installment that falls in August. What changes is where it sits: dated by the purchase, a
+     * January purchase sorts below anything actually bought in August, the way an invoice reads.
+     */
+    @Test
+    void listsAJanuaryInstallmentUnderAugustButBelowAugustsOwnPurchases() {
+        Fixture fixture = base();
+        CreditCard card = creditCardService.create(
+                new CreditCardRequest(fixture.account().getId(), "Gold", "VISA", new BigDecimal("5000.00"), 10, 17),
+                fixture.ownerId());
+
+        transactionTemplateService.create(
+                new TransactionTemplateRequest(
+                        TransactionKind.CARD_CHARGE,
+                        null,
+                        card.getId(),
+                        fixture.category().getId(),
+                        "Sofa",
+                        new BigDecimal("1200.00"),
+                        RecurrenceType.INSTALLMENT,
+                        LocalDate.of(2026, 1, 25),
+                        12),
+                fixture.ownerId());
+
+        transactionService.create(
+                new TransactionRequest(
+                        TransactionKind.ACCOUNT_DEBIT,
+                        fixture.account().getId(),
+                        null,
+                        fixture.category().getId(),
+                        new BigDecimal("10.00"),
+                        LocalDate.of(2026, 8, 5),
+                        "Groceries"),
+                fixture.ownerId());
+
+        List<Transaction> august = transactionService
+                .findAll(
+                        fixture.ownerId(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        LocalDate.of(2026, 8, 1),
+                        LocalDate.of(2026, 8, 31),
+                        PageRequest.of(0, 25, TransactionService.NEWEST_FIRST))
+                .getContent();
+
+        assertEquals(2, august.size());
+        assertEquals("Groceries", august.get(0).getDescription());
+        assertEquals("Sofa", august.get(1).getDescription());
+        assertEquals(8, august.get(1).getInstallmentNumber());
+        assertEquals(LocalDate.of(2026, 8, 25), august.get(1).getTransactionDate());
+        assertEquals(LocalDate.of(2026, 1, 25), august.get(1).getPurchaseDate());
+    }
+
     @Test
     void filtersByKindServerSide() {
         Fixture fixture = seed(3);
