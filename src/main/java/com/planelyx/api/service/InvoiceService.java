@@ -1,15 +1,19 @@
 package com.planelyx.api.service;
 
 import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
 import static org.springframework.util.StringUtils.hasText;
 
+import com.planelyx.api.domain.BankAccount;
 import com.planelyx.api.domain.Category;
 import com.planelyx.api.domain.CreditCard;
 import com.planelyx.api.domain.Invoice;
 import com.planelyx.api.domain.Transaction;
 import com.planelyx.api.domain.enums.CategoryType;
 import com.planelyx.api.domain.enums.InvoiceStatus;
+import com.planelyx.api.domain.enums.SystemCategoryKey;
 import com.planelyx.api.domain.enums.TransactionKind;
+import com.planelyx.api.dto.InvoicePaymentRequest;
 import com.planelyx.api.exception.NotFoundException;
 import com.planelyx.api.repository.CategoryRepository;
 import com.planelyx.api.repository.InvoiceRepository;
@@ -40,10 +44,14 @@ public class InvoiceService {
      */
     private static final String DEFAULT_ADJUSTMENT_DESCRIPTION = "Invoice adjustment";
 
+    /** Same reasoning as above: the client has no wording to send for a payment it did not describe. */
+    private static final String DEFAULT_PAYMENT_DESCRIPTION = "Invoice payment";
+
     private final InvoiceRepository invoiceRepository;
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
     private final CreditCardService creditCardService;
+    private final BankAccountService bankAccountService;
 
     /**
      * The billing period a charge falls into, and when that period falls due.
@@ -160,11 +168,11 @@ public class InvoiceService {
     }
 
     public List<Transaction> transactionsFor(UUID invoiceId) {
-        return transactionRepository.findAllByInvoiceId(invoiceId);
+        return transactionRepository.findChargesByInvoiceId(invoiceId);
     }
 
     public Page<Transaction> transactionsFor(UUID invoiceId, Pageable pageable) {
-        return transactionRepository.findAllByInvoiceId(invoiceId, pageable);
+        return transactionRepository.findChargesByInvoiceId(invoiceId, pageable);
     }
 
     /** Total still owed on a card — everything invoiced but not yet paid. */
@@ -179,17 +187,96 @@ public class InvoiceService {
                         InvoiceRepository.CardTotal::getCreditCardId, InvoiceRepository.CardTotal::getTotal));
     }
 
-    public Invoice pay(UUID id, UUID ownerId) {
+    /**
+     * Settles the invoice, taking the money out of a real account.
+     *
+     * The status flip alone was never enough. A card charge never touches an account, so if
+     * paying only marked the invoice, the money left no trace anywhere: the invoice dropped out
+     * of the dashboard's deduction and no balance moved to replace it, which read as the debt
+     * simply evaporating. The settlement is what closes that gap.
+     *
+     * It is posted as an {@link TransactionKind#INVOICE_PAYMENT} rather than an ordinary debit
+     * because it is not spending — the charges it pays off were already counted as expenses in
+     * the month this invoice fell due, and counting the settlement too would report them twice.
+     *
+     * Written straight to the repository, as {@link #adjust} is, because
+     * {@link TransactionService#create} refuses system categories and knows nothing of this kind.
+     */
+    public Invoice pay(UUID id, InvoicePaymentRequest request, UUID ownerId) {
         Invoice invoice = findById(id, ownerId);
 
-        if (invoice.getStatus() != InvoiceStatus.PAID) {
-            invoice.setStatus(InvoiceStatus.PAID);
-            invoice.setPaidAt(Instant.now());
-
-            invoiceRepository.save(invoice);
+        if (invoice.getStatus() == InvoiceStatus.PAID) {
+            return invoice;
         }
 
-        return invoice;
+        postSettlement(invoice, request, ownerId);
+
+        invoice.setStatus(InvoiceStatus.PAID);
+        invoice.setPaidAt(Instant.now());
+
+        return invoiceRepository.save(invoice);
+    }
+
+    private void postSettlement(Invoice invoice, InvoicePaymentRequest request, UUID ownerId) {
+        // An invoice that came to nothing settles nothing. Posting a zero-amount row would only
+        // add noise to the account's history.
+        if (invoice.getTotalAmount().signum() == 0) {
+            return;
+        }
+
+        transactionRepository.save(Transaction.builder()
+                .ownerId(ownerId)
+                .kind(TransactionKind.INVOICE_PAYMENT)
+                .bankAccount(paymentAccount(invoice, request, ownerId))
+                .invoice(invoice)
+                .category(systemCategory(ownerId, SystemCategoryKey.INVOICE_PAYMENT, CategoryType.EXPENSE))
+                .amount(invoice.getTotalAmount())
+                .transactionDate(paymentDate(invoice, request))
+                .description(paymentDescription(invoice, request))
+                .paid(true)
+                .build());
+    }
+
+    /**
+     * What the row is called, in the caller's wording where there is any.
+     *
+     * The fallback names the card so the entry is still readable on its own, but it is English —
+     * only the client knows what language to write in.
+     */
+    private String paymentDescription(Invoice invoice, InvoicePaymentRequest request) {
+        if (nonNull(request) && hasText(request.description())) {
+            return request.description();
+        }
+
+        return DEFAULT_PAYMENT_DESCRIPTION + " — " + invoice.getCreditCard().getName();
+    }
+
+    /**
+     * The account the money comes out of: the one asked for, or the card's own.
+     *
+     * {@code credit_card.bank_account_id} is NOT NULL, so there is always a fallback — a card is
+     * always tied to the account it is billed against.
+     */
+    private BankAccount paymentAccount(Invoice invoice, InvoicePaymentRequest request, UUID ownerId) {
+        if (nonNull(request) && nonNull(request.bankAccountId())) {
+            return bankAccountService.findById(request.bankAccountId(), ownerId);
+        }
+
+        return invoice.getCreditCard().getBankAccount();
+    }
+
+    /**
+     * When the money left: the date given, or the day the invoice fell due.
+     *
+     * The due date is the right default because that is when the bank takes it, and a balance
+     * projected to the end of a month has to place the debit inside that month to be right.
+     */
+    private LocalDate paymentDate(Invoice invoice, InvoicePaymentRequest request) {
+        if (nonNull(request) && nonNull(request.paymentDate())) {
+            return request.paymentDate();
+        }
+
+        return invoice.getDueDate();
     }
 
     /**
@@ -253,22 +340,40 @@ public class InvoiceService {
     }
 
     private Category adjustmentCategory(UUID ownerId) {
-        return categoryRepository
-                .findAdjustmentForOwner(ownerId, CategoryType.EXPENSE)
-                .orElseThrow(() -> new NotFoundException("Adjustment category is missing for owner: " + ownerId));
+        return systemCategory(ownerId, SystemCategoryKey.ADJUSTMENT, CategoryType.EXPENSE);
     }
 
+    private Category systemCategory(UUID ownerId, SystemCategoryKey key, CategoryType type) {
+        return categoryRepository
+                .findByOwnerIdAndSystemKeyAndType(ownerId, key, type)
+                .orElseThrow(() -> new NotFoundException(key + " category is missing for owner: " + ownerId));
+    }
+
+    /**
+     * Undoes {@link #pay}, settlement included.
+     *
+     * The transaction is deleted rather than reversed with an opposing entry: the payment is
+     * derived from the invoice, not a fact about the account in its own right, so a user
+     * correcting a misclick should not be left with two rows explaining it.
+     *
+     * {@code OPEN} is written back even for a period that closed long ago; {@link #derivedStatus}
+     * re-derives {@code CLOSED} on read, so it corrects itself.
+     */
     public Invoice unpay(UUID id, UUID ownerId) {
         Invoice invoice = findById(id, ownerId);
 
-        if (invoice.getStatus() == InvoiceStatus.PAID) {
-            invoice.setStatus(InvoiceStatus.OPEN);
-            invoice.setPaidAt(null);
-
-            invoiceRepository.save(invoice);
+        if (invoice.getStatus() != InvoiceStatus.PAID) {
+            return invoice;
         }
 
-        return invoice;
+        transactionRepository
+                .findByInvoiceIdAndKind(invoice.getId(), TransactionKind.INVOICE_PAYMENT)
+                .ifPresent(transactionRepository::delete);
+
+        invoice.setStatus(InvoiceStatus.OPEN);
+        invoice.setPaidAt(null);
+
+        return invoiceRepository.save(invoice);
     }
 
     /**

@@ -27,8 +27,14 @@ import org.springframework.beans.factory.annotation.Autowired;
  */
 class CategoryServiceIntegrationTest extends AbstractIntegrationTest {
 
-    /** 18 defaults from V9 plus the two adjustment categories from V11. */
-    private static final int SEEDED_COUNT = 20;
+    /**
+     * 18 defaults from V9, the two adjustment categories from V11, and the invoice payment one
+     * from V16.
+     */
+    private static final int SEEDED_COUNT = 21;
+
+    /** Adjustment in both flavours, plus invoice payment. */
+    private static final int SYSTEM_COUNT = 3;
 
     @Autowired
     private CategoryService categoryService;
@@ -43,7 +49,10 @@ class CategoryServiceIntegrationTest extends AbstractIntegrationTest {
         assertTrue(
                 categories.stream().allMatch(category -> ownerId.equals(category.getOwnerId())),
                 "every seeded category belongs to the owner");
-        assertEquals(2, categories.stream().filter(Category::isSystem).count(), "one adjustment category per type");
+        assertEquals(
+                SYSTEM_COUNT,
+                categories.stream().filter(Category::isSystem).count(),
+                "an adjustment category per type, and one for invoice payments");
     }
 
     /**
@@ -95,8 +104,8 @@ class CategoryServiceIntegrationTest extends AbstractIntegrationTest {
 
     /**
      * Clearing out categories is a decision that sticks. Nothing seeds after registration, and even
-     * a stray callback would find the adjustment categories still there — those cannot be deleted,
-     * so an established owner never looks empty to the guard on {@code copyTemplatesFor}.
+     * a stray callback would find the system categories still there — those cannot be deleted, so
+     * an established owner never looks empty to the guard on {@code copyTemplatesFor}.
      */
     @Test
     void deletingEveryCategoryDoesNotSeedThemAgain() {
@@ -110,7 +119,7 @@ class CategoryServiceIntegrationTest extends AbstractIntegrationTest {
 
         List<Category> remaining = categoryService.findAll(ownerId);
 
-        assertEquals(2, remaining.size(), "only the adjustment categories survive");
+        assertEquals(SYSTEM_COUNT, remaining.size(), "only the system categories survive");
         assertTrue(remaining.stream().allMatch(Category::isSystem));
     }
 

@@ -109,7 +109,10 @@ public class TransactionService {
 
             if (rowKind == TransactionKind.ACCOUNT_CREDIT) {
                 income = income.add(total);
-            } else {
+            } else if (rowKind != TransactionKind.INVOICE_PAYMENT) {
+                // A settlement moves the balance but is not spending — the charges it pays off
+                // were already counted. Left in, it would report the same money twice and put
+                // this summary at odds with the dashboard.
                 expense = expense.add(total);
             }
         }
@@ -230,6 +233,8 @@ public class TransactionService {
      */
     public Transaction update(UUID id, TransactionUpdateRequest request, UUID ownerId) {
         Transaction target = findById(id, ownerId);
+        rejectDerived(target);
+
         Category category = categoryService.findById(request.categoryId(), ownerId);
         rejectSystemCategory(category);
 
@@ -251,6 +256,8 @@ public class TransactionService {
 
     public void delete(UUID id, UUID ownerId, TransactionScope scope) {
         Transaction target = findById(id, ownerId);
+        rejectDerived(target);
+
         List<Transaction> affected = inScope(target, scope);
 
         // Collected before the delete: reading getInvoice() off a removed entity afterwards is
@@ -306,6 +313,20 @@ public class TransactionService {
     private void rejectSystemCategory(Category category) {
         if (category.isSystem()) {
             throw new IllegalArgumentException("Category is reserved for adjustments: " + category.getId());
+        }
+    }
+
+    /**
+     * A settlement belongs to its invoice, not to the account it appears on.
+     *
+     * Editing one would put it out of step with the invoice it claims to have paid, and deleting
+     * one would leave the invoice marked paid with the money still in the account. Unpaying the
+     * invoice is the only way to remove it.
+     */
+    private void rejectDerived(Transaction transaction) {
+        if (transaction.getKind() == TransactionKind.INVOICE_PAYMENT) {
+            throw new IllegalArgumentException(
+                    "An invoice payment follows its invoice — unpay the invoice instead: " + transaction.getId());
         }
     }
 

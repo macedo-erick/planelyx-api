@@ -2,6 +2,7 @@ package com.planelyx.api;
 
 import com.planelyx.api.domain.Category;
 import com.planelyx.api.domain.enums.CategoryType;
+import com.planelyx.api.domain.enums.SystemCategoryKey;
 import com.planelyx.api.repository.CategoryRepository;
 import com.planelyx.api.service.UserProvisioningService;
 import java.util.UUID;
@@ -42,7 +43,7 @@ public abstract class AbstractIntegrationTest {
 
     protected Category adjustmentCategory(UUID ownerId, CategoryType type) {
         return categoryRepository
-                .findAdjustmentForOwner(ownerId, type)
+                .findByOwnerIdAndSystemKeyAndType(ownerId, SystemCategoryKey.ADJUSTMENT, type)
                 .orElseThrow(() -> new AssertionError("No " + type + " adjustment category for owner " + ownerId));
     }
 }
