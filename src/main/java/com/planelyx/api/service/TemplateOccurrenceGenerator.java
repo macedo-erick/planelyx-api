@@ -83,7 +83,9 @@ public class TemplateOccurrenceGenerator {
                 .transactionDate(occurrenceDate)
                 .purchaseDate(purchaseDate)
                 .description(template.getDescription())
-                .paid(true)
+                // A rule materialises months of occurrences at once, so most of them are bills that
+                // have not been paid yet. That is what the dashboard reminds the owner of.
+                .paid(TransactionService.settledOnCreation(template.getKind(), occurrenceDate))
                 .build();
 
         Transaction saved = transactionRepository.save(transaction);

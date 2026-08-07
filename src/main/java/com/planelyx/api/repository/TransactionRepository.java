@@ -4,6 +4,7 @@ import com.planelyx.api.domain.Transaction;
 import com.planelyx.api.domain.enums.TransactionKind;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -110,6 +111,41 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID>,
             + "group by t.kind")
     List<KindTotal> sumByKindInMonthDue(UUID ownerId, LocalDate from, LocalDate to);
 
+    /**
+     * When each of these invoices was actually settled.
+     *
+     * {@code Invoice.status} says whether an invoice is paid, but not when — and paying is no
+     * longer pinned to the due date, so an invoice can fall due in one month and be settled in the
+     * next. A month's figures have to ask whether it was paid <em>by then</em>, or the debt
+     * disappears from a month it was still owed in while the debit that replaces it sits in a
+     * later one.
+     *
+     * The settlement's own date is that answer; nothing needs storing on the invoice for it.
+     */
+    @Query("select t.invoice.id as invoiceId, t.transactionDate as settledOn from Transaction t "
+            + "where t.kind = com.planelyx.api.domain.enums.TransactionKind.INVOICE_PAYMENT "
+            + "and t.invoice.id in :invoiceIds")
+    List<InvoiceSettlement> findSettlementDatesByInvoiceIds(Collection<UUID> invoiceIds);
+
+    /**
+     * The month's bills still waiting to be paid, oldest first.
+     *
+     * Only account debits born of a recurring rule: those are the contas — rent, power, internet —
+     * that a reminder is for. A card charge is settled by its invoice rather than one at a time,
+     * and income is nothing to remember.
+     *
+     * These rows already exist and are already inside every balance figure. Nothing here changes
+     * what anything costs — see {@code DashboardResponse#billsDue}.
+     */
+    @Query("select t from Transaction t "
+            + "where t.ownerId = :ownerId "
+            + "and t.kind = com.planelyx.api.domain.enums.TransactionKind.ACCOUNT_DEBIT "
+            + "and t.paid = false "
+            + "and t.template is not null "
+            + "and t.transactionDate between :from and :to "
+            + "order by t.transactionDate")
+    List<Transaction> findUnpaidBillsInMonth(UUID ownerId, LocalDate from, LocalDate to);
+
     /** The same window and the same dating rule, broken down by category. Income is not spending. */
     @Query("select t.category.id as categoryId, coalesce(sum(t.amount), 0) as total "
             + "from Transaction t left join t.invoice i "
@@ -139,5 +175,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID>,
         UUID getCategoryId();
 
         BigDecimal getTotal();
+    }
+
+    interface InvoiceSettlement {
+        UUID getInvoiceId();
+
+        LocalDate getSettledOn();
     }
 }

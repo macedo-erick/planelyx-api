@@ -3,6 +3,7 @@ package com.planelyx.api.service;
 import com.planelyx.api.domain.BankAccount;
 import com.planelyx.api.domain.Category;
 import com.planelyx.api.domain.Invoice;
+import com.planelyx.api.domain.Transaction;
 import com.planelyx.api.domain.TransactionTemplate;
 import com.planelyx.api.domain.enums.InvoiceStatus;
 import com.planelyx.api.domain.enums.RecurrenceType;
@@ -10,6 +11,7 @@ import com.planelyx.api.domain.enums.TransactionKind;
 import com.planelyx.api.dto.DashboardResponse;
 import com.planelyx.api.dto.InvoiceResponse;
 import com.planelyx.api.mapper.InvoiceMapper;
+import com.planelyx.api.mapper.TransactionMapper;
 import com.planelyx.api.repository.TransactionRepository;
 import com.planelyx.api.repository.TransactionTemplateRepository;
 import java.math.BigDecimal;
@@ -53,8 +55,10 @@ public class DashboardService {
         List<DashboardResponse.AccountBalance> balances = accountBalances(ownerId, periodEnd);
         List<TransactionRepository.KindTotal> movement =
                 transactionRepository.sumByKindInMonthDue(ownerId, periodStart, periodEnd);
-        List<Invoice> unpaid = unpaid(ownerId);
-        List<Invoice> due = dueThrough(unpaid, periodEnd);
+        List<Invoice> invoices = invoiceService.findAll(ownerId, null, null);
+        List<Invoice> unpaid = unpaid(invoices);
+        List<Invoice> due = owedThrough(invoices, periodEnd);
+        List<Transaction> bills = transactionRepository.findUnpaidBillsInMonth(ownerId, periodStart, periodEnd);
         BigDecimal dueTotal = total(due);
         BigDecimal accountTotal = totalBalance(balances);
 
@@ -71,22 +75,61 @@ public class DashboardService {
                 categoryBreakdown(ownerId, periodStart, periodEnd),
                 total(unpaid),
                 upcomingInvoices(unpaid),
+                bills.stream().map(TransactionMapper::toResponse).toList(),
+                billsTotal(bills),
+                bills.size(),
                 beyondGeneratedOccurrences(ownerId, month));
     }
 
     /**
-     * The unpaid invoices a forecast to {@code asOf} has to account for.
+     * The invoices a forecast to {@code asOf} still has to deduct.
      *
-     * An invoice already paid needs no deduction: paying one posts a settlement against the
-     * account, so the money is gone from the balance already. What is left are the bills that
-     * fall due by the end of the month and have not been settled — committed, still sitting in
-     * the account, and not the owner's to spend. Ones falling due later are left alone: they are
-     * not this month's problem.
+     * Two things have to be true. It has to fall due by the end of the month — one falling due
+     * later is not this month's problem. And it has to have been unpaid <em>as of that day</em>,
+     * which is not the same as being unpaid now: a settlement carries its own date, and one paid
+     * in September does not take the money out of August. Reading the stored status alone would
+     * drop the deduction from a month whose balance still holds the money, and the debt would
+     * read as having evaporated — the very gap the settlement exists to close.
+     *
+     * A paid invoice with no settlement came to nothing (paying a zero total posts no row), so
+     * there is nothing to deduct either way.
      */
-    private List<Invoice> dueThrough(List<Invoice> unpaid, LocalDate asOf) {
-        return unpaid.stream()
+    private List<Invoice> owedThrough(List<Invoice> invoices, LocalDate asOf) {
+        List<Invoice> fallingDue = invoices.stream()
                 .filter(invoice -> !invoice.getDueDate().isAfter(asOf))
                 .toList();
+
+        Map<UUID, LocalDate> settledOn = settlementDates(fallingDue);
+
+        return fallingDue.stream()
+                .filter(invoice -> stillOwedOn(invoice, settledOn.get(invoice.getId()), asOf))
+                .toList();
+    }
+
+    private boolean stillOwedOn(Invoice invoice, LocalDate settledOn, LocalDate asOf) {
+        if (invoiceService.derivedStatus(invoice) != InvoiceStatus.PAID) {
+            return true;
+        }
+
+        return settledOn != null && settledOn.isAfter(asOf);
+    }
+
+    private Map<UUID, LocalDate> settlementDates(List<Invoice> invoices) {
+        if (invoices.isEmpty()) {
+            return Map.of();
+        }
+
+        return transactionRepository
+                .findSettlementDatesByInvoiceIds(
+                        invoices.stream().map(Invoice::getId).toList())
+                .stream()
+                .collect(Collectors.toMap(
+                        TransactionRepository.InvoiceSettlement::getInvoiceId,
+                        TransactionRepository.InvoiceSettlement::getSettledOn));
+    }
+
+    private BigDecimal billsTotal(List<Transaction> bills) {
+        return bills.stream().map(Transaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     /**
@@ -203,8 +246,13 @@ public class DashboardService {
                 .toList();
     }
 
-    private List<Invoice> unpaid(UUID ownerId) {
-        return invoiceService.findAll(ownerId, null, null).stream()
+    /**
+     * What is outstanding right now, for the figures that are not tied to the month being read —
+     * the running total and the list of what is coming. {@link #owedThrough} is the one that has
+     * to reason about a particular day.
+     */
+    private List<Invoice> unpaid(List<Invoice> invoices) {
+        return invoices.stream()
                 .filter(invoice -> invoiceService.derivedStatus(invoice) != InvoiceStatus.PAID)
                 .toList();
     }

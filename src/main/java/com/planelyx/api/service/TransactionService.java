@@ -64,6 +64,22 @@ public class TransactionService {
     private final TransactionTemplateService transactionTemplateService;
     private final EntityManager entityManager;
 
+    /**
+     * Whether an entry is already settled the moment it is written.
+     *
+     * Only an account debit can be a bill: a card charge is settled by its invoice rather than one
+     * at a time, and income is nothing to remember to pay. Among those, the date decides. A debit
+     * dated today or earlier is being recorded after the fact — it happened, so it is paid. One
+     * dated ahead has not happened yet, which is exactly what a reminder is for.
+     *
+     * Package-private and static so {@link TemplateOccurrenceGenerator} applies the same rule to
+     * the occurrences it materialises; a recurring rule generates months of them at once, and most
+     * of those are in the future.
+     */
+    static boolean settledOnCreation(TransactionKind kind, LocalDate date) {
+        return kind != TransactionKind.ACCOUNT_DEBIT || !date.isAfter(LocalDate.now());
+    }
+
     public Page<Transaction> findAll(
             UUID ownerId,
             UUID bankAccountId,
@@ -210,7 +226,7 @@ public class TransactionService {
                 // Nothing posted directly is spread over time, so the entry is the purchase.
                 .purchaseDate(request.transactionDate())
                 .description(request.description())
-                .paid(true);
+                .paid(settledOnCreation(request.kind(), request.transactionDate()));
 
         if (request.kind() == TransactionKind.CARD_CHARGE) {
             CreditCard card = creditCardService.findById(request.creditCardId(), ownerId);
@@ -295,6 +311,30 @@ public class TransactionService {
         if (scope != TransactionScope.SINGLE && nonNull(target.getTemplate())) {
             transactionTemplateService.deactivate(target.getTemplate().getId(), ownerId);
         }
+    }
+
+    /**
+     * Ticks a bill off, or puts it back on the list.
+     *
+     * This moves no money. The entry already exists and is already inside every balance figure —
+     * balances here are a forecast to the end of a month, not a snapshot of today, so a bill dated
+     * the 20th is deducted from the 31st's balance whether or not it has been paid. All this flag
+     * decides is whether the dashboard still reminds the owner about it.
+     *
+     * Only an account debit can be ticked off. A card charge is settled through its invoice, and
+     * flipping one here would claim it was paid on its own; income is not a bill at all.
+     */
+    public Transaction markPaid(UUID id, boolean paid, UUID ownerId) {
+        Transaction target = findById(id, ownerId);
+        rejectDerived(target);
+
+        if (target.getKind() != TransactionKind.ACCOUNT_DEBIT) {
+            throw new IllegalArgumentException("Only an account debit can be paid off on its own: " + id);
+        }
+
+        target.setPaid(paid);
+
+        return transactionRepository.save(target);
     }
 
     /**

@@ -95,6 +95,24 @@ public class TransactionController {
         return TransactionMapper.toResponse(transactionService.update(id, request, currentUser.ownerId()));
     }
 
+    /**
+     * Ticks a bill off the dashboard's reminder list. Account debits only.
+     *
+     * Nothing but the flag moves — the entry is already counted in every balance, so this changes
+     * no figure. It is the opposite of {@code /api/invoices/{id}/pay}, which really does post a
+     * debit.
+     */
+    @PostMapping("/{id}/pay")
+    public TransactionResponse pay(@PathVariable UUID id) {
+        return TransactionMapper.toResponse(transactionService.markPaid(id, true, currentUser.ownerId()));
+    }
+
+    /** Puts a bill back on the list, for one ticked off by mistake. */
+    @PostMapping("/{id}/unpay")
+    public TransactionResponse unpay(@PathVariable UUID id) {
+        return TransactionMapper.toResponse(transactionService.markPaid(id, false, currentUser.ownerId()));
+    }
+
     /** {@code scope} only reaches past this row when the transaction belongs to a template. */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
