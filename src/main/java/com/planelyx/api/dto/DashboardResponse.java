@@ -37,6 +37,24 @@ public record DashboardResponse(
         BigDecimal outstandingInvoiceTotal,
         List<InvoiceResponse> upcomingInvoices,
         /**
+         * This month's recurring account bills that have not been ticked off yet — rent, power,
+         * internet — oldest first, so the owner can see what is still to pay.
+         *
+         * Purely a reminder. Every one of these is an ordinary transaction that already exists and
+         * is <strong>already inside {@code accountBalanceTotal}</strong>, because balances here are
+         * a forecast to the end of the month rather than a snapshot of today. Marking one paid
+         * moves no money and changes no figure above. A client must not subtract
+         * {@code billsDueTotal} from anything — that is double counting, and double counting is
+         * what this feature exists to stop.
+         *
+         * Card invoices are not here. They are settled as one bill through {@code upcomingInvoices}
+         * and are deducted through {@code invoicesDueTotal}, which is a different thing entirely.
+         */
+        List<TransactionResponse> billsDue,
+        /** The plain sum of {@code billsDue}, for a heading. Not deducted from anything. */
+        BigDecimal billsDueTotal,
+        int billsDueCount,
+        /**
          * True when the month sits beyond the last generated occurrence of an open-ended
          * recurring rule, so the figures are necessarily incomplete rather than simply low.
          */

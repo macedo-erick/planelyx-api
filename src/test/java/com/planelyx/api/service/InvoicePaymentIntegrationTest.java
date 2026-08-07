@@ -40,6 +40,15 @@ class InvoicePaymentIntegrationTest extends AbstractIntegrationTest {
 
     private static final YearMonth DUE_MONTH = YearMonth.of(2026, 9);
 
+    /**
+     * A settlement date inside {@link #DUE_MONTH}, for the tests that read that month's figures.
+     *
+     * They pass it explicitly rather than letting the default apply. The default is now today, and
+     * a test whose arithmetic depends on the settlement landing inside a fixed month would start
+     * failing on its own once the wall clock walked past it.
+     */
+    private static final LocalDate SETTLED_ON = LocalDate.of(2026, 9, 5);
+
     @Autowired
     private BankAccountService bankAccountService;
 
@@ -71,7 +80,7 @@ class InvoicePaymentIntegrationTest extends AbstractIntegrationTest {
 
         DashboardResponse before = dashboard(fixture);
 
-        invoiceService.pay(fixture.invoice().getId(), null, fixture.ownerId());
+        pay(fixture);
 
         DashboardResponse after = dashboard(fixture);
 
@@ -92,7 +101,7 @@ class InvoicePaymentIntegrationTest extends AbstractIntegrationTest {
 
         BigDecimal before = dashboard(fixture).expense();
 
-        invoiceService.pay(fixture.invoice().getId(), null, fixture.ownerId());
+        pay(fixture);
 
         assertEquals(0, before.compareTo(dashboard(fixture).expense()));
         assertAmount("400.00", before);
@@ -121,7 +130,7 @@ class InvoicePaymentIntegrationTest extends AbstractIntegrationTest {
 
         DashboardResponse before = dashboard(fixture);
 
-        invoiceService.pay(invoiceId, null, fixture.ownerId());
+        pay(fixture);
         invoiceService.unpay(invoiceId, fixture.ownerId());
 
         DashboardResponse after = dashboard(fixture);
@@ -141,25 +150,58 @@ class InvoicePaymentIntegrationTest extends AbstractIntegrationTest {
         Fixture fixture = invoice("400.00");
         UUID invoiceId = fixture.invoice().getId();
 
-        invoiceService.pay(invoiceId, null, fixture.ownerId());
-        invoiceService.pay(invoiceId, null, fixture.ownerId());
+        pay(fixture);
+        pay(fixture);
         invoiceService.unpay(invoiceId, fixture.ownerId());
-        invoiceService.pay(invoiceId, null, fixture.ownerId());
+        pay(fixture);
 
         assertAmount("600.00", dashboard(fixture).accountBalanceTotal());
     }
 
-    /** With no body, the debit lands on the due date and comes out of the card's own account. */
+    /**
+     * With no body, the debit lands on today and comes out of the card's own account.
+     *
+     * It used to land on the due date. Someone paying by hand pays when they pay, and dating the
+     * debit to the vencimento left the money showing in the account on a day it had already gone —
+     * so correcting the balance by hand debited the month a second time.
+     */
     @Test
-    void theDefaultsAreTheDueDateAndTheCardsAccount() {
+    void theDefaultsAreTodayAndTheCardsAccount() {
         Fixture fixture = invoice("400.00");
 
         invoiceService.pay(fixture.invoice().getId(), null, fixture.ownerId());
 
         Transaction settlement = settlement(fixture);
 
-        assertEquals(fixture.invoice().getDueDate(), settlement.getTransactionDate());
+        assertEquals(LocalDate.now(), settlement.getTransactionDate());
+        assertEquals(LocalDate.now(), settlement.getPurchaseDate());
         assertEquals(fixture.account().getId(), settlement.getBankAccount().getId());
+    }
+
+    /**
+     * A month whose invoice was settled after it ended still has to deduct that invoice.
+     *
+     * The status column says paid but not <em>when</em>, and now that paying is no longer pinned to
+     * the due date the two can fall in different months. Reading the status alone would drop the
+     * deduction from August while the debit that replaces it sits in September — the debt reading
+     * as having evaporated, which is the whole thing the settlement was built to prevent.
+     */
+    @Test
+    void anInvoiceSettledAfterTheMonthIsStillOwedInIt() {
+        Fixture fixture = invoice("400.00");
+
+        DashboardResponse before = dashboard(fixture);
+
+        invoiceService.pay(
+                fixture.invoice().getId(),
+                new InvoicePaymentRequest(DUE_MONTH.plusMonths(1).atDay(3), null, null),
+                fixture.ownerId());
+
+        DashboardResponse after = dashboard(fixture);
+
+        assertAmount("400.00", after.invoicesDueTotal());
+        assertEquals(1, after.invoicesDueCount());
+        assertEquals(0, before.totalBalance().compareTo(after.totalBalance()), "the debt did not evaporate");
     }
 
     /** The API has no translations, so the wording a user reads has to come from the client. */
@@ -231,6 +273,12 @@ class InvoicePaymentIntegrationTest extends AbstractIntegrationTest {
                         .findByInvoiceIdAndKind(invoiceId, TransactionKind.INVOICE_PAYMENT)
                         .isEmpty(),
                 "the settlement went with the card");
+    }
+
+    /** Settles the invoice on {@link #SETTLED_ON}, the date every figure below is read against. */
+    private void pay(Fixture fixture) {
+        invoiceService.pay(
+                fixture.invoice().getId(), new InvoicePaymentRequest(SETTLED_ON, null, null), fixture.ownerId());
     }
 
     private Transaction settlement(Fixture fixture) {

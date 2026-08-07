@@ -224,7 +224,7 @@ public class InvoiceService {
             return;
         }
 
-        LocalDate settledOn = paymentDate(invoice, request);
+        LocalDate settledOn = paymentDate(request);
 
         transactionRepository.save(Transaction.builder()
                 .ownerId(ownerId)
@@ -269,17 +269,22 @@ public class InvoiceService {
     }
 
     /**
-     * When the money left: the date given, or the day the invoice fell due.
+     * When the money left: the date given, or today.
      *
-     * The due date is the right default because that is when the bank takes it, and a balance
-     * projected to the end of a month has to place the debit inside that month to be right.
+     * This used to fall back to the due date, on the reasoning that the due date is when the bank
+     * takes it. That is only true of a direct debit. Someone paying by hand pays when they pay,
+     * and dating their settlement to the vencimento puts the debit on a day the money was still
+     * in the account — so the balance they read back does not match their statement, and
+     * correcting it by hand leaves the month debited twice.
+     *
+     * Today is what the API actually knows: a client that knows better sends the date it means.
      */
-    private LocalDate paymentDate(Invoice invoice, InvoicePaymentRequest request) {
+    private LocalDate paymentDate(InvoicePaymentRequest request) {
         if (nonNull(request) && nonNull(request.paymentDate())) {
             return request.paymentDate();
         }
 
-        return invoice.getDueDate();
+        return LocalDate.now();
     }
 
     /**
