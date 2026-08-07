@@ -21,6 +21,15 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * One entry in the ledger: an account movement, a card charge, or the settlement of an invoice.
+ *
+ * It carries two dates because an installment needs both. {@code transactionDate} is the day the
+ * entry falls on; {@code purchaseDate} is the day the purchase was actually made. They agree on
+ * everything but an installment, whose occurrences are generated a month apart from a single
+ * purchase — a sofa bought on 25 January is dated 25 March in the March invoice, and the purchase
+ * date is the only field that still says January.
+ */
 @Entity
 @Table(name = "transaction")
 @Getter
@@ -70,13 +79,6 @@ public class Transaction extends Auditable {
     @Column(name = "transaction_date", nullable = false)
     private LocalDate transactionDate;
 
-    /**
-     * The day the purchase was made, as opposed to the day this entry falls on.
-     *
-     * The same as {@link #transactionDate} for everything but an installment, whose occurrences are
-     * generated a month apart from a single purchase — a sofa bought on 25 January is dated
-     * 25 March in the March invoice, and this is the only field that still says January.
-     */
     @Column(name = "purchase_date", nullable = false)
     private LocalDate purchaseDate;
 
