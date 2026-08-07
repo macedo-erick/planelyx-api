@@ -62,8 +62,14 @@ public class TemplateOccurrenceGenerator {
     }
 
     private void generateOccurrence(TransactionTemplate template, int occurrenceNumber) {
+        boolean installment = template.getRecurrenceType() == RecurrenceType.INSTALLMENT;
         LocalDate occurrenceDate = template.getStartDate().plusMonths(occurrenceNumber - 1L);
         BigDecimal amount = resolveAmount(template, occurrenceNumber);
+
+        // Only an installment is one purchase spread across several entries, so only there does the
+        // purchase date differ from the occurrence. Every other rule has a start date too, but on a
+        // monthly subscription that is when the rule began, not when this month's charge was made.
+        LocalDate purchaseDate = installment ? template.getStartDate() : occurrenceDate;
 
         Transaction transaction = Transaction.builder()
                 .ownerId(template.getOwnerId())
@@ -72,9 +78,10 @@ public class TemplateOccurrenceGenerator {
                 .creditCard(template.getCreditCard())
                 .category(template.getCategory())
                 .template(template)
-                .installmentNumber(template.getRecurrenceType() == RecurrenceType.INSTALLMENT ? occurrenceNumber : null)
+                .installmentNumber(installment ? occurrenceNumber : null)
                 .amount(amount)
                 .transactionDate(occurrenceDate)
+                .purchaseDate(purchaseDate)
                 .description(template.getDescription())
                 .paid(true)
                 .build();

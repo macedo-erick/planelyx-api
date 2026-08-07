@@ -224,6 +224,8 @@ public class InvoiceService {
             return;
         }
 
+        LocalDate settledOn = paymentDate(invoice, request);
+
         transactionRepository.save(Transaction.builder()
                 .ownerId(ownerId)
                 .kind(TransactionKind.INVOICE_PAYMENT)
@@ -231,7 +233,8 @@ public class InvoiceService {
                 .invoice(invoice)
                 .category(systemCategory(ownerId, SystemCategoryKey.INVOICE_PAYMENT, CategoryType.EXPENSE))
                 .amount(invoice.getTotalAmount())
-                .transactionDate(paymentDate(invoice, request))
+                .transactionDate(settledOn)
+                .purchaseDate(settledOn)
                 .description(paymentDescription(invoice, request))
                 .paid(true)
                 .build());
@@ -308,6 +311,8 @@ public class InvoiceService {
             return invoice;
         }
 
+        LocalDate adjustedOn = adjustmentDate(invoice);
+
         transactionRepository.save(Transaction.builder()
                 .ownerId(invoice.getCreditCard().getOwnerId())
                 .kind(TransactionKind.CARD_CHARGE)
@@ -315,7 +320,8 @@ public class InvoiceService {
                 .invoice(invoice)
                 .category(adjustmentCategory(ownerId))
                 .amount(delta)
-                .transactionDate(adjustmentDate(invoice))
+                .transactionDate(adjustedOn)
+                .purchaseDate(adjustedOn)
                 .description(hasText(description) ? description : DEFAULT_ADJUSTMENT_DESCRIPTION)
                 .paid(true)
                 .build());

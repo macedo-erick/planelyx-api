@@ -8,6 +8,7 @@ import com.planelyx.api.domain.Category;
 import com.planelyx.api.domain.CreditCard;
 import com.planelyx.api.domain.Invoice;
 import com.planelyx.api.domain.Transaction;
+import com.planelyx.api.domain.enums.RecurrenceType;
 import com.planelyx.api.domain.enums.TransactionKind;
 import com.planelyx.api.domain.enums.TransactionScope;
 import com.planelyx.api.dto.TransactionRequest;
@@ -42,14 +43,18 @@ import org.springframework.transaction.annotation.Transactional;
 public class TransactionService {
 
     /**
-     * Newest first, with {@code createdAt} as a tiebreak.
+     * Most recent purchase first, with {@code createdAt} as a tiebreak.
      *
-     * The tiebreak is not cosmetic. Without a total ordering, rows sharing a transaction date
-     * can come back in a different order per request, which makes a row appear on two pages or
-     * on none while paging.
+     * By purchase date and not by {@code transactionDate}: an installment's later occurrences are
+     * dated months after anything was bought, so ordering by the entry's own date scatters a
+     * January purchase through the middle of August. Sorted this way it settles below August's own
+     * entries, which is how an invoice already reads.
+     *
+     * The tiebreak is not cosmetic. Without a total ordering, rows sharing a date can come back in
+     * a different order per request, which makes a row appear on two pages or on none while paging.
      */
     public static final Sort NEWEST_FIRST =
-            Sort.by(Sort.Direction.DESC, "transactionDate").and(Sort.by(Sort.Direction.DESC, "createdAt"));
+            Sort.by(Sort.Direction.DESC, "purchaseDate").and(Sort.by(Sort.Direction.DESC, "createdAt"));
 
     private final TransactionRepository transactionRepository;
     private final BankAccountService bankAccountService;
@@ -202,6 +207,8 @@ public class TransactionService {
                 .category(category)
                 .amount(request.amount())
                 .transactionDate(request.transactionDate())
+                // Nothing posted directly is spread over time, so the entry is the purchase.
+                .purchaseDate(request.transactionDate())
                 .description(request.description())
                 .paid(true);
 
@@ -230,6 +237,10 @@ public class TransactionService {
      * Category, amount and description are applied to every transaction in scope, but the date
      * is applied only to the one being edited — moving every sibling's date would collapse a
      * monthly series onto a single day.
+     *
+     * The purchase date follows along only outside an installment, where it is simply the entry's
+     * own date. An installment's occurrences share one purchase, so rewriting it from a single row
+     * would put the same purchase on two different days.
      */
     public Transaction update(UUID id, TransactionUpdateRequest request, UUID ownerId) {
         Transaction target = findById(id, ownerId);
@@ -247,6 +258,10 @@ public class TransactionService {
         }
 
         target.setTransactionDate(request.transactionDate());
+
+        if (!isInstallment(target)) {
+            target.setPurchaseDate(request.transactionDate());
+        }
 
         transactionRepository.saveAll(affected);
         recomputeInvoices(affected);
@@ -303,6 +318,12 @@ public class TransactionService {
         return siblings.stream()
                 .filter(sibling -> !sibling.getTransactionDate().isBefore(target.getTransactionDate()))
                 .toList();
+    }
+
+    /** One occurrence of a purchase split into parts, rather than an entry standing on its own. */
+    private boolean isInstallment(Transaction transaction) {
+        return nonNull(transaction.getTemplate())
+                && transaction.getTemplate().getRecurrenceType() == RecurrenceType.INSTALLMENT;
     }
 
     /**
