@@ -34,6 +34,17 @@ public class SecurityConfig {
         return source;
     }
 
+    /**
+     * Stateless, token-authenticated, with three paths deliberately left open.
+     *
+     * The API docs are public. The health endpoints are for container and uptime probes, which have
+     * no token to present. The Keycloak callback has no user behind it at all — it carries an HMAC
+     * that {@code KeycloakEventController} checks itself.
+     *
+     * The last two are only safe because the reverse proxy blocks {@code /actuator} from the
+     * internet and has no route to {@code /internal} at all. Exposing either directly would undo
+     * that.
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.cors(Customizer.withDefaults())
@@ -42,13 +53,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(
                         auth -> auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                                 .permitAll()
-                                // Container and uptime probes have no token. The reverse proxy
-                                // blocks /actuator from the internet, so this stays internal.
                                 .requestMatchers("/actuator/health/**")
                                 .permitAll()
-                                // Keycloak calls this one; it has no user to present a token for.
-                                // The reverse proxy has no route to /internal, and the callback
-                                // carries an HMAC that KeycloakEventController checks itself.
                                 .requestMatchers("/internal/keycloak/**")
                                 .permitAll()
                                 .anyRequest()

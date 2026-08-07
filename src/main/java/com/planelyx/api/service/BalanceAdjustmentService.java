@@ -61,8 +61,6 @@ public class BalanceAdjustmentService {
             return Optional.empty();
         }
 
-        // The kind carries the direction, so the amount stays positive and the ordinary
-        // create path — validation, invoice rules, the paid flag — applies unchanged.
         boolean inflow = delta.signum() > 0;
 
         TransactionRequest transaction = new TransactionRequest(

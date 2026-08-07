@@ -31,13 +31,17 @@ public class ProvisioningSignatureVerifier {
         this.secret = properties.webhookSecret().getBytes(StandardCharsets.UTF_8);
     }
 
+    /**
+     * Whether the presented signature is the one this body should carry.
+     *
+     * Compared as bytes rather than with {@code String.equals}, which returns early on the first
+     * differing character and so leaks how much of a guessed signature was right.
+     */
     public boolean matches(byte[] body, String presented) {
         if (presented == null || !presented.startsWith(PREFIX)) {
             return false;
         }
 
-        // Compared as bytes rather than with String.equals, which returns early on the first
-        // differing character and so leaks how much of a guessed signature was right.
         return MessageDigest.isEqual(
                 expected(body).getBytes(StandardCharsets.US_ASCII), presented.getBytes(StandardCharsets.US_ASCII));
     }
@@ -49,7 +53,6 @@ public class ProvisioningSignatureVerifier {
 
             return PREFIX + HexFormat.of().formatHex(mac.doFinal(body));
         } catch (GeneralSecurityException e) {
-            // HmacSHA256 is required of every JRE, so this only fires on an empty secret.
             throw new IllegalStateException("Could not verify the provisioning signature", e);
         }
     }

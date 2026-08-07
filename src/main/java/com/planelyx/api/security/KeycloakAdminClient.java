@@ -64,8 +64,6 @@ public class KeycloakAdminClient {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(attributes)
                 .retrieve()
-                // Keycloak answers 409 when the email or username is already taken by someone
-                // else. That is the user's mistake to correct, not a server fault.
                 .onStatus(status -> status == HttpStatus.CONFLICT, (request, response) -> {
                     throw new ConflictException("That email address is already in use");
                 })

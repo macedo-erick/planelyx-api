@@ -11,24 +11,28 @@ import java.util.UUID;
  * Balances are cumulative as of the end of that month, which is what makes stepping forward a
  * forecast: installments and recurring occurrences are already materialised as rows, so a future
  * month simply includes rows that exist.
+ *
+ * Three figures are easy to double count, so they are worth stating together. {@code
+ * accountBalanceTotal} is the plain sum of the accounts. {@code invoicesDueTotal} covers the unpaid
+ * invoices falling due by {@code periodEnd} — committed money that has not left any one account
+ * yet. {@code totalBalance} is the first less the second, so it deliberately does not match the
+ * accounts below it. An invoice already paid is in neither: paying one posts a settlement, so it
+ * has left the balances already.
+ *
+ * {@code billsDue} is not a fourth figure of that kind. It lists the month's recurring account
+ * bills still to be ticked off, and every one is an ordinary transaction already inside {@code
+ * accountBalanceTotal} — a reminder, nothing more. Subtracting {@code billsDueTotal} from anything
+ * counts the same money twice.
+ *
+ * {@code beyondGeneratedOccurrences} says the month sits past the last generated occurrence of an
+ * open-ended recurring rule, so its figures are necessarily incomplete rather than simply low.
  */
 public record DashboardResponse(
         LocalDate periodStart,
         LocalDate periodEnd,
         List<AccountBalance> accountBalances,
-        /** The plain sum of {@code accountBalances}, so a client can show the subtraction below. */
         BigDecimal accountBalanceTotal,
-        /**
-         * What is actually the owner's by {@code periodEnd}: {@code accountBalanceTotal} less
-         * {@code invoicesDueTotal}. It deliberately does not match the sum of the accounts — an
-         * unpaid card invoice is money already committed but not yet taken out of any one
-         * account, so it is deducted from the total only.
-         *
-         * Invoices already paid are not deducted here and do not need to be: paying one posts a
-         * settlement against an account, so it has already left the balances above.
-         */
         BigDecimal totalBalance,
-        /** Unpaid invoices falling due on or before {@code periodEnd}, already deducted above. */
         BigDecimal invoicesDueTotal,
         int invoicesDueCount,
         BigDecimal income,
@@ -36,28 +40,9 @@ public record DashboardResponse(
         List<CategoryBreakdown> categoryBreakdown,
         BigDecimal outstandingInvoiceTotal,
         List<InvoiceResponse> upcomingInvoices,
-        /**
-         * This month's recurring account bills that have not been ticked off yet — rent, power,
-         * internet — oldest first, so the owner can see what is still to pay.
-         *
-         * Purely a reminder. Every one of these is an ordinary transaction that already exists and
-         * is <strong>already inside {@code accountBalanceTotal}</strong>, because balances here are
-         * a forecast to the end of the month rather than a snapshot of today. Marking one paid
-         * moves no money and changes no figure above. A client must not subtract
-         * {@code billsDueTotal} from anything — that is double counting, and double counting is
-         * what this feature exists to stop.
-         *
-         * Card invoices are not here. They are settled as one bill through {@code upcomingInvoices}
-         * and are deducted through {@code invoicesDueTotal}, which is a different thing entirely.
-         */
         List<TransactionResponse> billsDue,
-        /** The plain sum of {@code billsDue}, for a heading. Not deducted from anything. */
         BigDecimal billsDueTotal,
         int billsDueCount,
-        /**
-         * True when the month sits beyond the last generated occurrence of an open-ended
-         * recurring rule, so the figures are necessarily incomplete rather than simply low.
-         */
         boolean beyondGeneratedOccurrences) {
 
     public record AccountBalance(
@@ -67,9 +52,9 @@ public record DashboardResponse(
      * One slice of {@code expense}. The slices total {@code expense}, so a chart of them agrees
      * with the figure beside it.
      *
-     * @param categoryId null on the single remainder slice that carries every category past the
-     *     largest few. It stands for no one category, which is how a client tells it apart and
-     *     labels it in the reader's own language.
+     * A null {@code categoryId} marks the single remainder slice carrying every category past the
+     * largest few. It stands for no one category, which is how a client tells it apart and labels
+     * it in the reader's own language.
      */
     public record CategoryBreakdown(UUID categoryId, String name, String color, BigDecimal total) {}
 }

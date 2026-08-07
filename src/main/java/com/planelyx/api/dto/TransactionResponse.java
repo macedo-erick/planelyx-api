@@ -7,12 +7,14 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /**
- * @param transactionDate the day this entry hits the ledger — for an installment, the month it
- *     falls in rather than the day anything was bought
- * @param purchaseDate the day the purchase was actually made. The same as {@code transactionDate}
- *     for anything bought outright; for an installment it is the start date of the template it
- *     came from, since occurrences are generated a month apart and a sofa bought on 25 January
- *     is dated 25 March in the March invoice.
+ * One transaction as the client reads it.
+ *
+ * It carries two dates because an installment needs both. {@code transactionDate} is the day the
+ * entry hits the ledger — for an installment, the month it falls in rather than the day anything
+ * was bought. {@code purchaseDate} is when the purchase was actually made, the same as the other
+ * for anything bought outright; for an installment it is the start date of the template it came
+ * from, since occurrences are generated a month apart and a sofa bought on 25 January is dated
+ * 25 March in the March invoice.
  */
 public record TransactionResponse(
         UUID id,

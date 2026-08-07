@@ -59,8 +59,6 @@ public class InvoiceController {
             @PathVariable UUID id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size) {
-        // Resolved through the service so an invoice owned by someone else 404s before any of
-        // its charges are read.
         Invoice invoice = invoiceService.findById(id, currentUser.ownerId());
 
         return PageResponse.of(

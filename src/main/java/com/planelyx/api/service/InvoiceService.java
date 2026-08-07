@@ -218,8 +218,6 @@ public class InvoiceService {
     }
 
     private void postSettlement(Invoice invoice, InvoicePaymentRequest request, UUID ownerId) {
-        // An invoice that came to nothing settles nothing. Posting a zero-amount row would only
-        // add noise to the account's history.
         if (invoice.getTotalAmount().signum() == 0) {
             return;
         }
