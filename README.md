@@ -20,6 +20,9 @@ JWT (OAuth2 Resource Server).
   Keycloak image from it. This repository holds no Keycloak configuration of its own: the realm, the
   login theme and the provisioning event listener all live there, in one copy, used by both local
   development and production.
+- [`planelyx-ocr`](../planelyx-ocr) checked out **beside this repo** as well — `compose.yaml` builds
+  it the same way. It is the statement-import service behind the UI's review screen, and confirmed
+  transactions come back to this API through `POST /api/transactions`.
 
 ## 1. Configure environment
 
@@ -29,19 +32,30 @@ cp .env.example .env
 
 The defaults work out of the box for local development; edit `.env` if you want different credentials.
 
-## 2. Start Postgres and Keycloak
+## 2. Start Postgres, Keycloak and the import service
 
 ```bash
 docker compose up -d
 ```
 
-This starts `postgres` and `keycloak` (the `api` service is opt-in, see below). The first run builds the
+This starts `postgres`, `keycloak` and `ocr` (the `api` service is opt-in, see below). The first run builds the
 auth image, which includes compiling the event listener; later runs use the cache. Keycloak serves under
 `/auth` — `http://localhost:8081/auth` — because `KC_HTTP_RELATIVE_PATH` is baked into that image so the
 issuer matches production.
 
 Keycloak auto-imports the `planelyx` realm with a public client `planelyx-api` — no manual setup needed in
 the admin console.
+
+`ocr` is [`planelyx-ocr`](../planelyx-ocr), on `http://localhost:8084/ocr`, with its own
+`planelyx_ocr` database on the same Postgres server — the arrangement production uses. It creates that
+database if it is missing, applies its own migrations on start, and validates the same realm token this
+API does, so the UI's review screen works with nothing else to run.
+
+Creating it matters because `docker-entrypoint-initdb.d` only runs against an **empty** data directory:
+a stack that predates this service would otherwise never get the database, and no amount of restarting
+would fix it. Rather than requiring a `docker compose down -v` — which takes your local account with it —
+the service provisions what it needs. Production provisions the database ahead of time
+(`VPS_SETUP.md` §7), so that path is never taken there.
 
 **There is no seeded user.** Create your account through the app's "Register" link. Default categories are
 provisioned from Keycloak's registration event (see below), and realm import does not raise events, so an
@@ -102,12 +116,6 @@ docker compose ps
 
 The app connects to the Postgres and Keycloak containers on `localhost` by default (see
 `src/main/resources/application.yaml`) and runs Flyway migrations automatically on startup.
-
-Alternatively, run the API itself inside Docker using the `api` compose profile (uses the `dev` build stage):
-
-```bash
-docker compose --profile api up --build
-```
 
 ## 4. Get an access token
 

@@ -225,6 +225,11 @@ public class TransactionService {
      * own behalf — {@link BalanceAdjustmentService} routes through here so an adjustment still gets
      * the ordinary validation, invoice rules and paid flag while legitimately wearing the
      * adjustment category.
+     *
+     * The purchase date falls back to the entry's own date, which is what it is for anything bought
+     * outright and what every caller filing by hand means. A caller reading a statement is the one
+     * that can tell them apart — a purchase late in a cycle posts in the next period — so it may
+     * send its own and have it kept.
      */
     Transaction createCorrection(TransactionRequest request, UUID ownerId) {
         TransactionKindValidator.validate(request.kind(), request.bankAccountId(), request.creditCardId());
@@ -236,7 +241,7 @@ public class TransactionService {
                 .category(category)
                 .amount(request.amount())
                 .transactionDate(request.transactionDate())
-                .purchaseDate(request.transactionDate())
+                .purchaseDate(Objects.requireNonNullElse(request.purchaseDate(), request.transactionDate()))
                 .description(request.description())
                 .paid(settledOnCreation(request));
 

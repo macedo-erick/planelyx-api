@@ -1,0 +1,11 @@
+-- The staging database for planelyx-ocr, alongside the ledger's own.
+--
+-- Separate from `planelyx` on purpose: it is a staging area, and keeping it apart is what lets a
+-- parser be rewritten, a statement reprocessed, or a whole import rolled back without any of that
+-- touching confirmed ledger data. This mirrors production, where the two live side by side on one
+-- Postgres host.
+--
+-- Owned by the stack's own superuser rather than a role of its own, exactly as the keycloak
+-- database is. Production gives it a dedicated role with its own password (VPS_SETUP.md §7); a
+-- local throwaway container has nothing to gain from the extra moving part.
+CREATE DATABASE planelyx_ocr;
