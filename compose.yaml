@@ -10,6 +10,10 @@ services:
     volumes:
       - 'planelyx-postgres-data:/var/lib/postgresql/data'
       - './docker/postgres/init-keycloak-db.sql:/docker-entrypoint-initdb.d/init-keycloak-db.sql'
+      # Runs only against an empty data directory, so it covers a fresh stack and nothing else.
+      # The ocr service creates this database itself when it is missing, which is what makes an
+      # existing volume work without `docker compose down -v`.
+      - './docker/postgres/init-ocr-db.sql:/docker-entrypoint-initdb.d/init-ocr-db.sql'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-planelyx} -d ${POSTGRES_DB:-planelyx}']
       interval: 5s
@@ -44,10 +48,9 @@ services:
       - 'PLANELYX_UI_ORIGIN=${PLANELYX_UI_ORIGIN:-http://localhost:4200}'
       - 'PLANELYX_UI_BASE_URL=${PLANELYX_UI_BASE_URL:-http://localhost:4200}'
       - 'PLANELYX_KEYCLOAK_ADMIN_CLIENT_SECRET=${PLANELYX_KEYCLOAK_ADMIN_CLIENT_SECRET:-local-dev-secret}'
-      # Where the provisioning listener posts once a user registers. The api service below only
-      # runs under the `api` profile, so by default the API is on the host and Keycloak reaches
-      # it through the bridge gateway rather than by service name. Running the whole stack
-      # (`--profile api`) means overriding this to http://api:8080/internal/keycloak/user-registered.
+      # Where the provisioning listener posts once a user registers. This file holds the API's
+      # dependencies, not the API — that runs on the host from the IDE — so Keycloak reaches it
+      # through the bridge gateway rather than by service name.
       - 'PLANELYX_PROVISIONING_URL=${PLANELYX_PROVISIONING_URL:-http://host.docker.internal:8080/internal/keycloak/user-registered}'
       - 'PLANELYX_PROVISIONING_SECRET=${PLANELYX_PROVISIONING_SECRET:-local-dev-secret}'
     extra_hosts:
@@ -70,27 +73,55 @@ services:
       retries: 15
       start_period: 30s
 
-  api:
+  # Built from the sibling repo, on the same reasoning as keycloak above: the review screen in the
+  # UI talks to this service, so a stack without it has a page that only 404s.
+  #
+  # Requires planelyx-ocr checked out beside planelyx-api.
+  ocr:
     build:
-      context: .
+      context: ../planelyx-ocr
       target: dev
-    profiles: ['api']
     environment:
       - 'DB_HOST=postgres'
       - 'DB_PORT=5432'
-      - 'POSTGRES_DB=${POSTGRES_DB:-planelyx}'
+      # Its own database on the shared server, created by docker/postgres/init-ocr-db.sql.
+      - 'POSTGRES_DB=planelyx_ocr'
       - 'POSTGRES_USER=${POSTGRES_USER:-planelyx}'
       - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-planelyx}'
-      # Both carry the /auth prefix that KC_HTTP_RELATIVE_PATH puts on the auth image. The issuer
-      # has to match the token's `iss` claim exactly; the server URL is a base Spring appends to.
-      - 'KEYCLOAK_ISSUER_URI=http://keycloak:8080/auth/realms/planelyx'
-      - 'KEYCLOAK_SERVER_URL=http://keycloak:8080/auth'
-      - 'PLANELYX_PROVISIONING_SECRET=${PLANELYX_PROVISIONING_SECRET:-local-dev-secret}'
-      - 'KEYCLOAK_REALM=${KEYCLOAK_REALM:-planelyx}'
-      - 'KEYCLOAK_ADMIN_CLIENT_ID=${KEYCLOAK_ADMIN_CLIENT_ID:-planelyx-api-admin}'
-      - 'KEYCLOAK_ADMIN_CLIENT_SECRET=${PLANELYX_KEYCLOAK_ADMIN_CLIENT_SECRET:-local-dev-secret}'
+      # The issuer is compared against the token's `iss` claim byte for byte, and a browser gets
+      # its token from Keycloak on localhost:8081 — so that is what the claim says. The JWKS URL
+      # is fetched rather than compared, and "localhost" inside a container is the container
+      # itself, so the keys are read over the Compose network instead. The two differ on purpose.
+      - 'KEYCLOAK_ISSUER_URI=http://localhost:8081/auth/realms/planelyx'
+      - 'KEYCLOAK_JWKS_URI=http://keycloak:8080/auth/realms/planelyx/protocol/openid-connect/certs'
+      # Confirmed transactions are written here. The API runs on the host, the same arrangement
+      # keycloak's provisioning callback above assumes.
+      - 'PLANELYX_API_URL=${PLANELYX_API_URL:-http://host.docker.internal:8080/api}'
+      # The UI dev server is a different origin locally. In production nginx serves both under one
+      # host and no cross-origin request is made at all.
+      - 'OCR_CORS_ORIGINS=${PLANELYX_UI_ORIGIN:-http://localhost:4200}'
+      # Binds all interfaces because the container boundary is what limits exposure here; the
+      # published port below is loopback-only. The config default of 127.0.0.1 is right for a
+      # bare-metal run, where nothing else is in the way.
+      - 'HTTP_HOST=0.0.0.0'
+      - 'OCR_DATA_DIR=/app/data'
+      # On a volume of its own, not under OCR_DATA_DIR. Documents are encrypted with this key and
+      # kept, so a key regenerated on rebuild would leave every stored document permanently
+      # unreadable — and separate volumes mean a snapshot of one is useless without the other.
+      - 'OCR_MASTER_KEY_FILE=/app/keys/master.key'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     ports:
-      - '8080:8080'
+      - '127.0.0.1:8084:8080'
+    volumes:
+      - '../planelyx-ocr/src:/app/src'
+      - 'planelyx-ocr-data:/app/data'
+      - 'planelyx-ocr-keys:/app/keys'
+    # Migrations run before the server binds: nobody is sitting in the ocr repo to apply them by
+    # hand. --skip-backup is required rather than careless — the migration script refuses to run
+    # without pg_dump, which this image does not ship, and a local container database is exactly
+    # the disposable case that flag exists for.
+    command: ['sh', '-c', 'yarn db:migrate --skip-backup && yarn dev']
     depends_on:
       postgres:
         condition: service_healthy
@@ -99,3 +130,5 @@ services:
 
 volumes:
   planelyx-postgres-data:
+  planelyx-ocr-data:
+  planelyx-ocr-keys:

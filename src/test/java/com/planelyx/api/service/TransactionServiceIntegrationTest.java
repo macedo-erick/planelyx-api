@@ -304,6 +304,57 @@ class TransactionServiceIntegrationTest extends AbstractIntegrationTest {
         return new Series(ownerId, template.getId(), category.getId(), occurrences.get(count / 2));
     }
 
+    /**
+     * A statement separates the two dates, so a caller reading one must be able to keep them apart.
+     *
+     * The shape here is the one that actually arrives: a card bought on 28 July posts on the August
+     * invoice. Collapsing the purchase date onto the posting date loses the only field that still
+     * says July, and every report grouping spending by when it was bought moves that money a month.
+     */
+    @Test
+    void keepsAPurchaseDateThatPrecedesTheEntryDate() {
+        Fixture fixture = base();
+
+        Transaction filed = transactionService.create(
+                new TransactionRequest(
+                        TransactionKind.ACCOUNT_DEBIT,
+                        fixture.account().getId(),
+                        null,
+                        fixture.category().getId(),
+                        new BigDecimal("42.00"),
+                        LocalDate.of(2026, 8, 3),
+                        "Bookshop",
+                        null,
+                        LocalDate.of(2026, 7, 28)),
+                fixture.ownerId());
+
+        assertEquals(LocalDate.of(2026, 8, 3), filed.getTransactionDate());
+        assertEquals(LocalDate.of(2026, 7, 28), filed.getPurchaseDate());
+    }
+
+    /**
+     * The fallback every existing caller depends on. {@code purchase_date} is NOT NULL, so a request
+     * without an opinion has to resolve to something rather than reaching the database as null.
+     */
+    @Test
+    void fallsBackToTheEntryDateWhenNoPurchaseDateIsSent() {
+        Fixture fixture = base();
+
+        Transaction filed = transactionService.create(
+                new TransactionRequest(
+                        TransactionKind.ACCOUNT_DEBIT,
+                        fixture.account().getId(),
+                        null,
+                        fixture.category().getId(),
+                        new BigDecimal("42.00"),
+                        LocalDate.of(2026, 8, 3),
+                        "Bookshop"),
+                fixture.ownerId());
+
+        assertEquals(LocalDate.of(2026, 8, 3), filed.getTransactionDate());
+        assertEquals(LocalDate.of(2026, 8, 3), filed.getPurchaseDate());
+    }
+
     private record Fixture(UUID ownerId, BankAccount account, Category category) {}
 
     /** One ACCOUNT_CREDIT of 100.00, then {@code count - 1} debits of 10.00 on separate days. */

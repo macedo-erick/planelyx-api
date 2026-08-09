@@ -8,12 +8,6 @@ RUN ./gradlew dependencies --no-daemon
 COPY src ./src
 RUN ./gradlew bootJar --no-daemon -x test
 
-FROM eclipse-temurin:21-jdk AS dev
-WORKDIR /app
-COPY --from=build /app /app
-EXPOSE 8080
-ENTRYPOINT ["./gradlew", "bootRun", "--no-daemon"]
-
 FROM eclipse-temurin:21-jre AS prod
 # temurin:21-jre is Ubuntu-based, so this is useradd/groupadd rather than Alpine's
 # `adduser -S`. curl is not in the base image and the healthcheck below needs it.
