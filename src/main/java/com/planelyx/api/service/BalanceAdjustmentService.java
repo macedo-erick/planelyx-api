@@ -14,6 +14,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -29,6 +30,7 @@ import org.springframework.util.StringUtils;
  * which in turn needs {@code BankAccountService} — putting it there would close that loop and
  * Spring would refuse to build the context.
  */
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -52,6 +54,9 @@ public class BalanceAdjustmentService {
      * noise, and {@code TransactionRequest} rejects it anyway.
      */
     public Optional<Transaction> adjust(UUID bankAccountId, BalanceAdjustmentRequest request, UUID ownerId) {
+        log.info(
+                "Balance adjustment on account {} target={} owner={}", bankAccountId, request.targetBalance(), ownerId);
+
         LocalDate date = Objects.requireNonNullElseGet(request.transactionDate(), LocalDate::now);
 
         BigDecimal current = bankAccountService.balanceAsOf(bankAccountId, ownerId, date);

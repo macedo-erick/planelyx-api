@@ -11,10 +11,12 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -27,6 +29,12 @@ public class TemplateOccurrenceGenerator {
     private final InvoiceService invoiceService;
 
     public void generateInitialOccurrences(TransactionTemplate template) {
+        log.debug(
+                "Generating initial occurrences for template {} ({}) owner={}",
+                template.getId(),
+                template.getRecurrenceType(),
+                template.getOwnerId());
+
         if (template.getRecurrenceType() == RecurrenceType.FIXED_INDEFINITE) {
             for (int occurrence = 1; occurrence <= INDEFINITE_INITIAL_BUFFER; occurrence++) {
                 generateOccurrence(template, occurrence);
@@ -47,8 +55,18 @@ public class TemplateOccurrenceGenerator {
         transactionTemplateRepository.save(template);
     }
 
+    /**
+     * Runs monthly and unattended, so it says so in the log either way: a run that
+     * produced nothing and a run that never happened are otherwise identical from the
+     * outside.
+     */
     @Scheduled(cron = "0 0 2 1 * *")
     public void topUpIndefiniteTemplates() {
+        long startedAt = System.currentTimeMillis();
+        int toppedUp = 0;
+
+        log.info("Indefinite template top-up starting");
+
         for (TransactionTemplate template :
                 transactionTemplateRepository.findAllByActiveTrueAndRecurrenceType(RecurrenceType.FIXED_INDEFINITE)) {
             int nextOccurrence = template.getOccurrencesGenerated() + 1;
@@ -58,7 +76,15 @@ public class TemplateOccurrenceGenerator {
             template.setOccurrencesGenerated(nextOccurrence);
 
             transactionTemplateRepository.save(template);
+            toppedUp++;
+
+            log.debug("Topped up template {} to occurrence {}", template.getId(), nextOccurrence);
         }
+
+        log.info(
+                "Indefinite template top-up finished: {} templates in {}ms",
+                toppedUp,
+                System.currentTimeMillis() - startedAt);
     }
 
     private void generateOccurrence(TransactionTemplate template, int occurrenceNumber) {

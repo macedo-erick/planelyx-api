@@ -16,42 +16,40 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          # The /auth prefix is part of the issuer, not an artefact of the reverse proxy:
-          # KC_HTTP_RELATIVE_PATH=/auth is baked into the auth image, which local dev now runs
-          # too. This string has to match the token's `iss` claim byte for byte.
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/auth/realms/planelyx}
 
 planelyx:
   keycloak:
-    # Used to call Keycloak's Admin API for the signed-in user's own profile. The client is a
-    # confidential service account — see planelyx-auth/README.md for the realm-import caveat.
     server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8081/auth}
     realm: ${KEYCLOAK_REALM:planelyx}
     client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:planelyx-api-admin}
     client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:local-dev-secret}
   provisioning:
-    # Shared with Keycloak's provisioning listener, which signs its callbacks with it. The
-    # deployment feeds one value to both containers; the default here only ever applies locally.
     webhook-secret: ${PLANELYX_PROVISIONING_SECRET:local-dev-secret}
 
 server:
   port: ${SERVER_PORT:8080}
-  # Behind nginx the app sees http://127.0.0.1:8082. Honouring X-Forwarded-* makes
-  # generated URLs and OAuth2 error handling reflect the real https://planelyx.com.
   forward-headers-strategy: framework
 
 management:
   endpoints:
     web:
       exposure:
-        # Health only. Nginx 404s /actuator from outside, but keep the surface minimal
-        # in case that ever changes.
-        include: health
+        include: health,prometheus
   endpoint:
     health:
       probes:
         enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
 
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+logging:
+  level:
+    com.planelyx.api: ${LOG_LEVEL:INFO}
+    root: ${LOG_LEVEL_ROOT:INFO}

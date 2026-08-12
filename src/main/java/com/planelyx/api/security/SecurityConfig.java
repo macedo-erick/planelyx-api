@@ -35,15 +35,17 @@ public class SecurityConfig {
     }
 
     /**
-     * Stateless, token-authenticated, with three paths deliberately left open.
+     * Stateless, token-authenticated, with four paths deliberately left open.
      *
      * The API docs are public. The health endpoints are for container and uptime probes, which have
-     * no token to present. The Keycloak callback has no user behind it at all — it carries an HMAC
-     * that {@code KeycloakEventController} checks itself.
+     * no token to present. The Prometheus endpoint is scraped by the monitoring stack over the
+     * internal Docker network, which likewise has no token. The Keycloak callback has no user
+     * behind it at all — it carries an HMAC that {@code KeycloakEventController} checks itself.
      *
-     * The last two are only safe because the reverse proxy blocks {@code /actuator} from the
-     * internet and has no route to {@code /internal} at all. Exposing either directly would undo
-     * that.
+     * The last three are only safe because the reverse proxy blocks {@code /actuator} from the
+     * internet and has no route to {@code /internal} at all. Exposing any of them directly would
+     * undo that — and {@code /actuator/prometheus} in particular reports route names, JVM internals
+     * and traffic volumes, so it is a genuine information leak rather than a harmless counter.
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -53,7 +55,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(
                         auth -> auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                                 .permitAll()
-                                .requestMatchers("/actuator/health/**")
+                                .requestMatchers("/actuator/health/**", "/actuator/prometheus")
                                 .permitAll()
                                 .requestMatchers("/internal/keycloak/**")
                                 .permitAll()

@@ -8,6 +8,7 @@ import com.planelyx.api.repository.InvoiceRepository;
 import com.planelyx.api.repository.TransactionRepository;
 import com.planelyx.api.repository.TransactionTemplateRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
  * through {@code BankAccountService}, so the reverse edge would be a constructor cycle. Depending
  * only on repositories, this sits below both.
  */
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -46,6 +48,8 @@ public class CascadeDeleteService {
      * would still point at invoices about to be removed.
      */
     public void deleteCreditCard(CreditCard card) {
+        log.info("Cascade-deleting credit card {} owner={}", card.getId(), card.getOwnerId());
+
         transactionRepository.deleteAllByInvoiceCreditCardId(card.getId());
         transactionRepository.deleteAllByCreditCardId(card.getId());
         transactionRepository.flush();
@@ -61,6 +65,8 @@ public class CascadeDeleteService {
      * a card with no account behind it has nothing left to be paid from.
      */
     public void deleteBankAccount(BankAccount account) {
+        log.info("Cascade-deleting bank account {} owner={}", account.getId(), account.getOwnerId());
+
         creditCardRepository.findAllByBankAccountId(account.getId()).forEach(this::deleteCreditCard);
 
         transactionRepository.deleteAllByBankAccountId(account.getId());
