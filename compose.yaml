@@ -29,6 +29,7 @@ services:
       - 'KC_DB_USERNAME=${POSTGRES_USER:-planelyx}'
       - 'KC_DB_PASSWORD=${POSTGRES_PASSWORD:-planelyx}'
       - 'KC_HEALTH_ENABLED=true'
+      - 'KC_METRICS_ENABLED=true'
       - 'KC_HTTP_RELATIVE_PATH=/auth'
       - 'KC_HTTP_MANAGEMENT_RELATIVE_PATH=/'
       - 'PLANELYX_UI_ORIGIN=${PLANELYX_UI_ORIGIN:-http://localhost:4200}'
@@ -71,6 +72,7 @@ services:
       - 'PLANELYX_API_URL=${PLANELYX_API_URL:-http://host.docker.internal:8080/api}'
       - 'OCR_CORS_ORIGINS=${PLANELYX_UI_ORIGIN:-http://localhost:4200}'
       - 'HTTP_HOST=0.0.0.0'
+      - 'LOG_LEVEL=${LOG_LEVEL:-info}'
       - 'OCR_DATA_DIR=/app/data'
       - 'OCR_MASTER_KEY_FILE=/app/keys/master.key'
     extra_hosts:

@@ -3,6 +3,7 @@ package com.planelyx.api.service;
 import com.planelyx.api.repository.CategoryRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
  * deletes every category from being handed them back, since nothing after registration ever seeds
  * again.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserProvisioningService {
@@ -28,6 +30,8 @@ public class UserProvisioningService {
 
     @Transactional
     public void provision(UUID ownerId) {
-        categoryRepository.copyTemplatesFor(ownerId);
+        int seeded = categoryRepository.copyTemplatesFor(ownerId);
+
+        log.info("Provisioned owner {}: {} categories seeded", ownerId, seeded);
     }
 }

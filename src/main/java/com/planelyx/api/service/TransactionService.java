@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -37,6 +38,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -276,6 +278,8 @@ public class TransactionService {
      * would put the same purchase on two different days.
      */
     public Transaction update(UUID id, TransactionUpdateRequest request, UUID ownerId) {
+        log.debug("Updating transaction {} owner={}", id, ownerId);
+
         Transaction target = findById(id, ownerId);
         rejectDerived(target);
 
@@ -303,6 +307,8 @@ public class TransactionService {
     }
 
     public void delete(UUID id, UUID ownerId, TransactionScope scope) {
+        log.info("Deleting transaction {} scope={} owner={}", id, scope, ownerId);
+
         Transaction target = findById(id, ownerId);
         rejectDerived(target);
 
@@ -338,6 +344,8 @@ public class TransactionService {
      * flipping one here would claim it was paid on its own; income is not a bill at all.
      */
     public Transaction markPaid(UUID id, boolean paid, UUID ownerId) {
+        log.debug("Marking transaction {} paid={} owner={}", id, paid, ownerId);
+
         Transaction target = findById(id, ownerId);
         rejectDerived(target);
 

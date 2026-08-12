@@ -28,11 +28,13 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -203,6 +205,8 @@ public class InvoiceService {
      * {@link TransactionService#create} refuses system categories and knows nothing of this kind.
      */
     public Invoice pay(UUID id, InvoicePaymentRequest request, UUID ownerId) {
+        log.info("Paying invoice {} owner={}", id, ownerId);
+
         Invoice invoice = findById(id, ownerId);
 
         if (invoice.getStatus() == InvoiceStatus.PAID) {
@@ -302,6 +306,8 @@ public class InvoiceService {
      * afterwards would rewrite what was actually paid.
      */
     public Invoice adjust(UUID id, BigDecimal targetAmount, String description, UUID ownerId) {
+        log.info("Adjusting invoice {} to {} owner={}", id, targetAmount, ownerId);
+
         Invoice invoice = findById(id, ownerId);
 
         if (derivedStatus(invoice) == InvoiceStatus.PAID) {
@@ -369,6 +375,8 @@ public class InvoiceService {
      * re-derives {@code CLOSED} on read, so it corrects itself.
      */
     public Invoice unpay(UUID id, UUID ownerId) {
+        log.info("Reversing payment on invoice {} owner={}", id, ownerId);
+
         Invoice invoice = findById(id, ownerId);
 
         if (invoice.getStatus() != InvoiceStatus.PAID) {
@@ -394,6 +402,8 @@ public class InvoiceService {
      * towards the month's spending while belonging to nothing.
      */
     public void delete(UUID id, UUID ownerId) {
+        log.info("Deleting invoice {} and its charges owner={}", id, ownerId);
+
         deleteWithCharges(findById(id, ownerId));
     }
 

@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -25,6 +26,7 @@ import org.springframework.web.client.RestClient;
  * Callers are expected to pass the {@code sub} of the authenticated principal — nothing here
  * checks who is asking, so exposing it for any other id would let one user edit another.
  */
+@Slf4j
 @Component
 public class KeycloakAdminClient {
 
@@ -41,6 +43,8 @@ public class KeycloakAdminClient {
     }
 
     public Map<String, Object> findUser(UUID userId) {
+        log.debug("Keycloak admin: reading user {}", userId);
+
         return restClient
                 .get()
                 .uri("/admin/realms/{realm}/users/{id}", properties.realm(), userId)
@@ -57,6 +61,8 @@ public class KeycloakAdminClient {
      * the caller only sends what it means to change.
      */
     public void updateUser(UUID userId, Map<String, Object> attributes) {
+        log.debug("Keycloak admin: updating user {} fields={}", userId, attributes.keySet());
+
         restClient
                 .put()
                 .uri("/admin/realms/{realm}/users/{id}", properties.realm(), userId)
@@ -92,8 +98,12 @@ public class KeycloakAdminClient {
                 .body(TokenResponse.class);
 
         if (response == null) {
+            log.error("Keycloak returned no token for the service account — admin calls will fail");
+
             throw new IllegalStateException("Keycloak returned no token for the service account");
         }
+
+        log.debug("Keycloak admin: fetched a service-account token, expires in {}s", response.expires_in());
 
         CachedToken fresh =
                 new CachedToken(response.access_token(), Instant.now().plusSeconds(response.expires_in()));

@@ -71,8 +71,12 @@ public class KeycloakEventController {
         }
 
         if (event.userId() == null) {
+            log.warn("Rejected a signed provisioning callback carrying no userId");
+
             return ResponseEntity.badRequest().build();
         }
+
+        log.debug("Accepted provisioning callback for user {} (realm {})", event.userId(), event.realm());
 
         long skew = Math.abs(System.currentTimeMillis() - event.timestamp());
 
