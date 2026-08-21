@@ -16,10 +16,12 @@ JWT (OAuth2 Resource Server).
 
 - JDK 21
 - Docker + Docker Compose
-- [`planelyx-auth`](../planelyx-auth) checked out **beside this repo** — `compose.yaml` builds the
-  Keycloak image from it. This repository holds no Keycloak configuration of its own: the realm, the
-  login theme and the provisioning event listener all live there, in one copy, used by both local
-  development and production.
+- [`auth`](../auth) checked out **beside this repo** — `compose.yaml`
+  builds the Keycloak image from it. This repository holds no Keycloak configuration of its own: the
+  realm, the login theme and the provisioning event listener all live there, in one copy, used by both
+  local development and production. That repo is shared across products, and deploys itself; in
+  production Keycloak is a Compose stack of its own, still serving Planelyx at
+  `https://planelyx.com/auth`.
 - [`planelyx-ocr`](../planelyx-ocr) checked out **beside this repo** as well — `compose.yaml` builds
   it the same way. It is the statement-import service behind the UI's review screen, and confirmed
   transactions come back to this API through `POST /api/transactions`.
@@ -66,23 +68,25 @@ equal to the username or email. Email verification is off, since the realm has n
 ### How a new user gets their categories
 
 Registering fires Keycloak's `REGISTER` event. The `planelyx-provisioning` event listener — built from
-`planelyx-auth/spi` and baked into the image — signs a small JSON payload with `PLANELYX_PROVISIONING_SECRET`
+`auth/spi` and baked into the image — signs a small JSON payload with `PLANELYX_PROVISIONING_SECRET`
 and posts it to `POST /internal/keycloak/user-registered`, which copies `category_template` into that owner's
 categories. It retries at 1s, 4s and 15s before giving up with an ERROR carrying the user id.
 
-That endpoint is the only one in the API that answers without a bearer token. It is not routed by the
-production reverse proxy, so it is reachable only from inside the Compose network, and it verifies the HMAC
+That endpoint is the only one in the API that answers without a bearer token. In production it is routed by
+the reverse proxy at `/internal/keycloak/`, but only for the auth stack's own Docker subnet — Keycloak is a
+separate Compose project there and can no longer reach the API by container name. It verifies the HMAC
 regardless.
 
 With the API running from the IDE (the usual setup), Keycloak reaches it at `host.docker.internal:8080`. If
-you run the API in Compose as well, override `PLANELYX_PROVISIONING_URL` — see `.env.example`.
+you run the API in Compose as well, override `PROVISIONING_PLANELYX_URL` — see `.env.example`. The variable is
+named per realm because one Keycloak serves a realm per product.
 
 The client's redirect URIs and web origins are scoped to the Angular app's origin rather than `*`. That origin
 defaults to `http://localhost:4200` and can be overridden by setting `PLANELYX_UI_ORIGIN` on the `keycloak`
 container (Keycloak substitutes `${VAR:default}` placeholders at realm-import time).
 
 Note that `--import-realm` only imports when the realm does not yet exist. If you already have a `planelyx`
-realm in the `keycloak` database, edits to `planelyx-auth/realm/realm-export.json` are ignored on restart —
+realm in the `keycloak` database, edits to `auth/realms/planelyx.json` are ignored on restart —
 change the setting in the admin console instead, or recreate the realm with
 `docker compose down -v && docker compose up -d` (this destroys your local account, so you will register
 again).
@@ -90,7 +94,7 @@ again).
 ### Login theme
 
 Keycloak's own login, registration and account-recovery screens are branded by the `planelyx` theme in
-`planelyx-auth/themes/planelyx`, baked into the auth image, also bind-mounted by `compose.yaml` so edits
+`auth/themes/planelyx`, baked into the auth image, also bind-mounted by `compose.yaml` so edits
 show up without a rebuild, and selected via the realm's `loginTheme`.
 
 It inherits from Keycloak's built-in `keycloak.v2` theme and adds a single stylesheet, so no FreeMarker

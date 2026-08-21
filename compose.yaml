@@ -19,7 +19,7 @@ services:
 
   keycloak:
     build:
-      context: ../planelyx-auth
+      context: ../auth
     command: ['start-dev', '--import-realm']
     environment:
       - 'KC_BOOTSTRAP_ADMIN_USERNAME=${KEYCLOAK_ADMIN:-admin}'
@@ -35,15 +35,15 @@ services:
       - 'PLANELYX_UI_ORIGIN=${PLANELYX_UI_ORIGIN:-http://localhost:4200}'
       - 'PLANELYX_UI_BASE_URL=${PLANELYX_UI_BASE_URL:-http://localhost:4200}'
       - 'PLANELYX_KEYCLOAK_ADMIN_CLIENT_SECRET=${PLANELYX_KEYCLOAK_ADMIN_CLIENT_SECRET:-local-dev-secret}'
-      - 'PLANELYX_PROVISIONING_URL=${PLANELYX_PROVISIONING_URL:-http://host.docker.internal:8080/internal/keycloak/user-registered}'
-      - 'PLANELYX_PROVISIONING_SECRET=${PLANELYX_PROVISIONING_SECRET:-local-dev-secret}'
+      - 'PROVISIONING_PLANELYX_URL=${PROVISIONING_PLANELYX_URL:-http://host.docker.internal:8080/internal/keycloak/user-registered}'
+      - 'PROVISIONING_PLANELYX_SECRET=${PLANELYX_PROVISIONING_SECRET:-local-dev-secret}'
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     ports:
       - '8081:8080'
     volumes:
-      - '../planelyx-auth/realm/realm-export.json:/opt/keycloak/data/import/realm-export.json'
-      - '../planelyx-auth/themes/planelyx:/opt/keycloak/themes/planelyx'
+      - '../auth/realms/planelyx.json:/opt/keycloak/data/import/planelyx.json'
+      - '../auth/themes/planelyx:/opt/keycloak/themes/planelyx'
     depends_on:
       postgres:
         condition: service_healthy
