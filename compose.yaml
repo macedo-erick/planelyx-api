@@ -81,6 +81,7 @@ services:
       - '127.0.0.1:8084:8080'
     volumes:
       - '../planelyx-ocr/src:/app/src'
+      - '../planelyx-ocr/drizzle:/app/drizzle'
       - 'planelyx-ocr-data:/app/data'
       - 'planelyx-ocr-keys:/app/keys'
     command: ['sh', '-c', 'yarn db:migrate --skip-backup && yarn dev']
