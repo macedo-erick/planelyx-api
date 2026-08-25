@@ -10,6 +10,8 @@ import com.planelyx.api.repository.TransactionTemplateRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -22,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class TemplateOccurrenceGenerator {
 
-    private static final int INDEFINITE_INITIAL_BUFFER = 3;
+    private static final int INDEFINITE_HORIZON_MONTHS = 12;
 
     private final TransactionRepository transactionRepository;
     private final TransactionTemplateRepository transactionTemplateRepository;
@@ -36,11 +38,7 @@ public class TemplateOccurrenceGenerator {
                 template.getOwnerId());
 
         if (template.getRecurrenceType() == RecurrenceType.FIXED_INDEFINITE) {
-            for (int occurrence = 1; occurrence <= INDEFINITE_INITIAL_BUFFER; occurrence++) {
-                generateOccurrence(template, occurrence);
-            }
-
-            template.setOccurrencesGenerated(INDEFINITE_INITIAL_BUFFER);
+            generateThroughHorizon(template);
         } else {
             int totalOccurrences = template.getTotalOccurrences();
 
@@ -69,22 +67,50 @@ public class TemplateOccurrenceGenerator {
 
         for (TransactionTemplate template :
                 transactionTemplateRepository.findAllByActiveTrueAndRecurrenceType(RecurrenceType.FIXED_INDEFINITE)) {
-            int nextOccurrence = template.getOccurrencesGenerated() + 1;
+            int generated = generateThroughHorizon(template);
 
-            generateOccurrence(template, nextOccurrence);
-
-            template.setOccurrencesGenerated(nextOccurrence);
+            if (generated == 0) {
+                continue;
+            }
 
             transactionTemplateRepository.save(template);
             toppedUp++;
 
-            log.debug("Topped up template {} to occurrence {}", template.getId(), nextOccurrence);
+            log.debug(
+                    "Topped up template {} with {} occurrences, now at {}",
+                    template.getId(),
+                    generated,
+                    template.getOccurrencesGenerated());
         }
 
         log.info(
                 "Indefinite template top-up finished: {} templates in {}ms",
                 toppedUp,
                 System.currentTimeMillis() - startedAt);
+    }
+
+    private int generateThroughHorizon(TransactionTemplate template) {
+        int target = occurrencesThroughHorizon(template);
+        int generated = template.getOccurrencesGenerated();
+
+        for (int occurrence = generated + 1; occurrence <= target; occurrence++) {
+            generateOccurrence(template, occurrence);
+        }
+
+        if (target > generated) {
+            template.setOccurrencesGenerated(target);
+        }
+
+        return Math.max(target - generated, 0);
+    }
+
+    private int occurrencesThroughHorizon(TransactionTemplate template) {
+        YearMonth start = YearMonth.from(template.getStartDate());
+        YearMonth horizonEnd = YearMonth.from(LocalDate.now()).plusMonths(INDEFINITE_HORIZON_MONTHS - 1L);
+
+        long spanned = ChronoUnit.MONTHS.between(start, horizonEnd) + 1;
+
+        return (int) Math.max(INDEFINITE_HORIZON_MONTHS, spanned);
     }
 
     private void generateOccurrence(TransactionTemplate template, int occurrenceNumber) {
