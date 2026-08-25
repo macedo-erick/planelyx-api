@@ -17,6 +17,8 @@ import com.planelyx.api.repository.TransactionRepository;
 import com.planelyx.api.repository.TransactionTemplateRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -105,5 +107,89 @@ class TemplateOccurrenceGeneratorTest {
         assertEquals(LocalDate.of(2026, 2, 15), savedTransactions.get(1).getTransactionDate());
 
         assertEquals(LocalDate.of(2026, 2, 15), savedTransactions.get(1).getPurchaseDate());
+    }
+
+    @Test
+    void generatesAFullYearAheadForIndefiniteTemplates() {
+        List<Transaction> savedTransactions = captureSavedTransactions();
+
+        LocalDate startDate = LocalDate.now().withDayOfMonth(10);
+        TransactionTemplate template = indefiniteTemplate(startDate, 0);
+
+        generator.generateInitialOccurrences(template);
+
+        assertEquals(12, savedTransactions.size());
+        assertEquals(12, template.getOccurrencesGenerated());
+        assertEquals(startDate, savedTransactions.get(0).getTransactionDate());
+        assertEquals(startDate.plusMonths(11), savedTransactions.get(11).getTransactionDate());
+        assertEquals(
+                12,
+                ChronoUnit.MONTHS.between(
+                                YearMonth.now(),
+                                YearMonth.from(savedTransactions.get(11).getTransactionDate()))
+                        + 1);
+    }
+
+    @Test
+    void topUpCatchesTemplatesUpToTheHorizonInOnePass() {
+        List<Transaction> savedTransactions = captureSavedTransactions();
+
+        LocalDate startDate = LocalDate.now().withDayOfMonth(10);
+        TransactionTemplate template = indefiniteTemplate(startDate, 3);
+
+        when(transactionTemplateRepository.findAllByActiveTrueAndRecurrenceType(RecurrenceType.FIXED_INDEFINITE))
+                .thenReturn(List.of(template));
+
+        generator.topUpIndefiniteTemplates();
+
+        assertEquals(9, savedTransactions.size());
+        assertEquals(12, template.getOccurrencesGenerated());
+        assertEquals(startDate.plusMonths(3), savedTransactions.get(0).getTransactionDate());
+        assertEquals(startDate.plusMonths(11), savedTransactions.get(8).getTransactionDate());
+    }
+
+    @Test
+    void topUpLeavesTemplatesAlreadyAtTheHorizonAlone() {
+        List<Transaction> savedTransactions = captureSavedTransactions();
+
+        TransactionTemplate template = indefiniteTemplate(LocalDate.now().withDayOfMonth(10), 12);
+
+        when(transactionTemplateRepository.findAllByActiveTrueAndRecurrenceType(RecurrenceType.FIXED_INDEFINITE))
+                .thenReturn(List.of(template));
+
+        generator.topUpIndefiniteTemplates();
+
+        assertEquals(0, savedTransactions.size());
+        assertEquals(12, template.getOccurrencesGenerated());
+        verify(transactionTemplateRepository, org.mockito.Mockito.never()).save(any());
+    }
+
+    private List<Transaction> captureSavedTransactions() {
+        List<Transaction> savedTransactions = new ArrayList<>();
+
+        when(transactionRepository.save(any())).thenAnswer(invocation -> {
+            Transaction transaction = invocation.getArgument(0);
+            savedTransactions.add(transaction);
+            return transaction;
+        });
+
+        return savedTransactions;
+    }
+
+    private TransactionTemplate indefiniteTemplate(LocalDate startDate, int occurrencesGenerated) {
+        return TransactionTemplate.builder()
+                .id(UUID.randomUUID())
+                .ownerId(UUID.randomUUID())
+                .kind(TransactionKind.ACCOUNT_DEBIT)
+                .bankAccount(BankAccount.builder().id(UUID.randomUUID()).build())
+                .category(Category.builder().id(UUID.randomUUID()).build())
+                .description("Rent")
+                .totalAmount(new BigDecimal("1200.00"))
+                .recurrenceType(RecurrenceType.FIXED_INDEFINITE)
+                .intervalUnit(IntervalUnit.MONTHLY)
+                .startDate(startDate)
+                .occurrencesGenerated(occurrencesGenerated)
+                .active(true)
+                .build();
     }
 }
