@@ -83,6 +83,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID>,
      * {@code bankAccount is not null} — they hit the invoice, not the account. The settlement
      * posted when that invoice is paid does name an account, so it is what finally takes the
      * money out.
+     *
+     * The same clause keeps yield and loss out, which is not an accident to be tidied away: they
+     * have no counterparty account. Contributions and redemptions do name one and must be here;
+     * {@link TransactionKind#accountSign()} gets their direction right.
      */
     @Query("select t.bankAccount.id as bankAccountId, t.kind as kind, coalesce(sum(t.amount), 0) as total "
             + "from Transaction t "
@@ -101,12 +105,19 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID>,
      * The join has to be explicit. Navigating {@code t.invoice.dueDate} implicitly makes
      * Hibernate emit an inner join, which would silently drop every account transaction.
      *
-     * Settlements are left out — see {@link TransactionKind#INVOICE_PAYMENT}.
+     * The kinds are listed rather than excluded, which is the point: written as "everything but a
+     * settlement", this handed each new kind to the expense figure by default. Yield and loss are
+     * here because both move income; the other three carry their reasons in their own javadoc.
      */
     @Query("select t.kind as kind, coalesce(sum(t.amount), 0) as total "
             + "from Transaction t left join t.invoice i "
             + "where t.ownerId = :ownerId "
-            + "and t.kind <> com.planelyx.api.domain.enums.TransactionKind.INVOICE_PAYMENT "
+            + "and t.kind in ("
+            + "  com.planelyx.api.domain.enums.TransactionKind.ACCOUNT_DEBIT, "
+            + "  com.planelyx.api.domain.enums.TransactionKind.ACCOUNT_CREDIT, "
+            + "  com.planelyx.api.domain.enums.TransactionKind.CARD_CHARGE, "
+            + "  com.planelyx.api.domain.enums.TransactionKind.INVESTMENT_YIELD, "
+            + "  com.planelyx.api.domain.enums.TransactionKind.INVESTMENT_LOSS) "
             + "and coalesce(i.dueDate, t.transactionDate) between :from and :to "
             + "group by t.kind")
     List<KindTotal> sumByKindInMonthDue(UUID ownerId, LocalDate from, LocalDate to);
@@ -146,19 +157,47 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID>,
             + "order by t.transactionDate")
     List<Transaction> findUnpaidBillsInMonth(UUID ownerId, LocalDate from, LocalDate to);
 
-    /** The same window and the same dating rule, broken down by category. Income is not spending. */
+    /**
+     * The same window and the same dating rule, broken down by category.
+     *
+     * Narrower than {@link #sumByKindInMonthDue} by two kinds, deliberately: this charts what a
+     * month cost, and yield and loss are income. Sharing one list between them would leave the
+     * slices disagreeing with the expense figure beside them. Matches
+     * {@link TransactionKind#isSpending()}; keep the two in step.
+     */
     @Query("select t.category.id as categoryId, coalesce(sum(t.amount), 0) as total "
             + "from Transaction t left join t.invoice i "
             + "where t.ownerId = :ownerId "
-            + "and t.kind <> com.planelyx.api.domain.enums.TransactionKind.ACCOUNT_CREDIT "
-            + "and t.kind <> com.planelyx.api.domain.enums.TransactionKind.INVOICE_PAYMENT "
+            + "and t.kind in ("
+            + "  com.planelyx.api.domain.enums.TransactionKind.ACCOUNT_DEBIT, "
+            + "  com.planelyx.api.domain.enums.TransactionKind.CARD_CHARGE) "
             + "and coalesce(i.dueDate, t.transactionDate) between :from and :to "
             + "group by t.category.id "
             + "order by sum(t.amount) desc")
     List<CategoryTotal> sumByCategoryInMonthDue(UUID ownerId, LocalDate from, LocalDate to);
 
+    /**
+     * The mirror of {@link #sumByAccountAndKindAsOf}, read from the other leg. From this side a
+     * contribution is an inflow, so the sign comes from {@link TransactionKind#investmentSign()}.
+     */
+    @Query("select t.investment.id as investmentId, t.kind as kind, coalesce(sum(t.amount), 0) as total "
+            + "from Transaction t "
+            + "where t.ownerId = :ownerId and t.investment is not null and t.transactionDate <= :asOf "
+            + "group by t.investment.id, t.kind")
+    List<InvestmentKindTotal> sumByInvestmentAndKindAsOf(UUID ownerId, LocalDate asOf);
+
+    void deleteAllByInvestmentId(UUID investmentId);
+
     interface AccountKindTotal {
         UUID getBankAccountId();
+
+        TransactionKind getKind();
+
+        BigDecimal getTotal();
+    }
+
+    interface InvestmentKindTotal {
+        UUID getInvestmentId();
 
         TransactionKind getKind();
 

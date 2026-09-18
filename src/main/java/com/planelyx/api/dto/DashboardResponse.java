@@ -24,6 +24,11 @@ import java.util.UUID;
  * accountBalanceTotal} — a reminder, nothing more. Subtracting {@code billsDueTotal} from anything
  * counts the same money twice.
  *
+ * {@code investedTotal} stands apart from those on purpose: folding it into {@code
+ * accountBalanceTotal} would stop that figure reconciling against a bank statement.
+ * {@code netWorth} is {@code totalBalance} plus {@code investedTotal} — the one number that does
+ * not move when money is contributed.
+ *
  * {@code beyondGeneratedOccurrences} says the month sits past the last generated occurrence of an
  * open-ended recurring rule, so its figures are necessarily incomplete rather than simply low.
  */
@@ -32,7 +37,10 @@ public record DashboardResponse(
         LocalDate periodEnd,
         List<AccountBalance> accountBalances,
         BigDecimal accountBalanceTotal,
+        List<InvestmentBalance> investmentBalances,
+        BigDecimal investedTotal,
         BigDecimal totalBalance,
+        BigDecimal netWorth,
         BigDecimal invoicesDueTotal,
         int invoicesDueCount,
         BigDecimal income,
@@ -47,6 +55,18 @@ public record DashboardResponse(
 
     public record AccountBalance(
             UUID bankAccountId, String name, String bankName, String currency, BigDecimal balance) {}
+
+    /**
+     * One investment at {@code periodEnd}. {@code contributed} is net of redemptions, so the
+     * difference against {@code balance} is the return.
+     */
+    public record InvestmentBalance(
+            UUID investmentId,
+            String name,
+            String institution,
+            String currency,
+            BigDecimal balance,
+            BigDecimal contributed) {}
 
     /**
      * One slice of {@code expense}. The slices total {@code expense}, so a chart of them agrees

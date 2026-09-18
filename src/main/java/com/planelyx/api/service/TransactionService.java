@@ -118,6 +118,10 @@ public class TransactionService {
      *
      * Grouped in the database rather than by loading rows: the caller wants four numbers, and
      * the row count behind a loose filter is unbounded.
+     *
+     * Both figures ask the kind directly rather than sweeping everything that is not income into
+     * expense — that sweep would have counted a contribution as spending on this screen alone,
+     * long after the dashboard stopped doing so.
      */
     public TransactionSummaryResponse summarize(
             UUID ownerId,
@@ -146,9 +150,9 @@ public class TransactionService {
             BigDecimal total = row.get(1, BigDecimal.class);
             count += row.get(2, Long.class);
 
-            if (rowKind == TransactionKind.ACCOUNT_CREDIT) {
-                income = income.add(total);
-            } else if (rowKind != TransactionKind.INVOICE_PAYMENT) {
+            if (rowKind.incomeSign() != 0) {
+                income = income.add(total.multiply(BigDecimal.valueOf(rowKind.incomeSign())));
+            } else if (rowKind.isSpending()) {
                 expense = expense.add(total);
             }
         }
@@ -399,16 +403,25 @@ public class TransactionService {
     }
 
     /**
-     * A settlement belongs to its invoice, not to the account it appears on.
+     * Some entries belong to the thing that posted them, not to the account they appear on.
      *
-     * Editing one would put it out of step with the invoice it claims to have paid, and deleting
-     * one would leave the invoice marked paid with the money still in the account. Unpaying the
-     * invoice is the only way to remove it.
+     * Editing a settlement would put it out of step with the invoice it claims to have paid, and
+     * deleting one would leave the invoice marked paid with the money still in the account.
+     * Unpaying the invoice is the only way to remove it.
+     *
+     * An investment movement moves two balances at once, so editing the amount from this side
+     * would credit an account without debiting the investment.
      */
     private void rejectDerived(Transaction transaction) {
         if (transaction.getKind() == TransactionKind.INVOICE_PAYMENT) {
             throw new IllegalArgumentException(
                     "An invoice payment follows its invoice — unpay the invoice instead: " + transaction.getId());
+        }
+
+        if (transaction.getKind().investmentSign() != 0) {
+            throw new IllegalArgumentException(
+                    "An investment movement carries two balances — correct it from the investment instead: "
+                            + transaction.getId());
         }
     }
 
