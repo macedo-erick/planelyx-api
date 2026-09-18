@@ -22,7 +22,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * One entry in the ledger: an account movement, a card charge, or the settlement of an invoice.
+ * One entry in the ledger: an account movement, a card charge, the settlement of an invoice, or
+ * a movement between an account and an investment.
  *
  * It carries two dates because an installment needs both. {@code transactionDate} is the day the
  * entry falls on; {@code purchaseDate} is the day the purchase was actually made. They agree on
@@ -69,6 +70,14 @@ public class Transaction extends Auditable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "template_id")
     private TransactionTemplate template;
+
+    /**
+     * A contribution and a redemption carry this <em>and</em> a bank account — one row, two legs.
+     * A yield or a loss carries only this, having no counterparty account.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "investment_id")
+    private Investment investment;
 
     @Column(name = "installment_number")
     private Integer installmentNumber;

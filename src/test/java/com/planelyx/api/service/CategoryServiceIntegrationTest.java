@@ -28,13 +28,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 class CategoryServiceIntegrationTest extends AbstractIntegrationTest {
 
     /**
-     * 18 defaults from V9, the two adjustment categories from V11, and the invoice payment one
-     * from V16.
+     * 18 defaults from V9, the two adjustment categories from V11, the invoice payment one from
+     * V16, and the two investment ones from V22.
      */
-    private static final int SEEDED_COUNT = 21;
+    private static final int SEEDED_COUNT = 23;
 
-    /** Adjustment in both flavours, plus invoice payment. */
-    private static final int SYSTEM_COUNT = 3;
+    /** Adjustment and investment in both flavours each, plus invoice payment. */
+    private static final int SYSTEM_COUNT = 5;
 
     @Autowired
     private CategoryService categoryService;

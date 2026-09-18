@@ -11,5 +11,8 @@ public enum SystemCategoryKey {
     ADJUSTMENT,
 
     /** Backs the settlement posted when a card invoice is paid. */
-    INVOICE_PAYMENT
+    INVOICE_PAYMENT,
+
+    /** Backs every movement between an account and an investment, and every yield or loss. */
+    INVESTMENT
 }

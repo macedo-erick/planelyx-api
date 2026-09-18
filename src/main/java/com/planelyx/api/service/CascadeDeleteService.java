@@ -2,8 +2,10 @@ package com.planelyx.api.service;
 
 import com.planelyx.api.domain.BankAccount;
 import com.planelyx.api.domain.CreditCard;
+import com.planelyx.api.domain.Investment;
 import com.planelyx.api.repository.BankAccountRepository;
 import com.planelyx.api.repository.CreditCardRepository;
+import com.planelyx.api.repository.InvestmentRepository;
 import com.planelyx.api.repository.InvoiceRepository;
 import com.planelyx.api.repository.TransactionRepository;
 import com.planelyx.api.repository.TransactionTemplateRepository;
@@ -32,6 +34,7 @@ public class CascadeDeleteService {
 
     private final BankAccountRepository bankAccountRepository;
     private final CreditCardRepository creditCardRepository;
+    private final InvestmentRepository investmentRepository;
     private final InvoiceRepository invoiceRepository;
     private final TransactionRepository transactionRepository;
     private final TransactionTemplateRepository transactionTemplateRepository;
@@ -60,9 +63,21 @@ public class CascadeDeleteService {
         creditCardRepository.delete(card);
     }
 
+    /** An investment and every movement filed against it, contributions and redemptions included. */
+    public void deleteInvestment(Investment investment) {
+        transactionRepository.deleteAllByInvestmentId(investment.getId());
+        transactionRepository.flush();
+
+        investmentRepository.delete(investment);
+    }
+
     /**
      * The account, its transactions and rules, and every card drawn on it — cards included because
      * a card with no account behind it has nothing left to be paid from.
+     *
+     * Contributions filed from it go too, so the investments they fed are left holding money with
+     * no recorded origin. The same bargain the delete already makes elsewhere, but worth naming:
+     * deleting an account can change what an investment reports.
      */
     public void deleteBankAccount(BankAccount account) {
         log.info("Cascade-deleting bank account {} owner={}", account.getId(), account.getOwnerId());
