@@ -2,12 +2,12 @@ package com.planelyx.api.service;
 
 import com.planelyx.api.domain.BankAccount;
 import com.planelyx.api.domain.Category;
+import com.planelyx.api.domain.Investment;
 import com.planelyx.api.domain.Invoice;
 import com.planelyx.api.domain.Transaction;
 import com.planelyx.api.domain.TransactionTemplate;
 import com.planelyx.api.domain.enums.InvoiceStatus;
 import com.planelyx.api.domain.enums.RecurrenceType;
-import com.planelyx.api.domain.enums.TransactionKind;
 import com.planelyx.api.dto.DashboardResponse;
 import com.planelyx.api.dto.InvoiceResponse;
 import com.planelyx.api.mapper.InvoiceMapper;
@@ -43,6 +43,7 @@ public class DashboardService {
     private final TransactionRepository transactionRepository;
     private final TransactionTemplateRepository transactionTemplateRepository;
     private final BankAccountService bankAccountService;
+    private final InvestmentService investmentService;
     private final CategoryService categoryService;
     private final InvoiceService invoiceService;
 
@@ -59,13 +60,19 @@ public class DashboardService {
         List<Transaction> bills = transactionRepository.findUnpaidBillsInMonth(ownerId, periodStart, periodEnd);
         BigDecimal dueTotal = total(due);
         BigDecimal accountTotal = totalBalance(balances);
+        List<DashboardResponse.InvestmentBalance> investments = investmentBalances(ownerId, periodEnd);
+        BigDecimal investedTotal = totalInvested(investments);
+        BigDecimal cashTotal = accountTotal.subtract(dueTotal);
 
         return new DashboardResponse(
                 periodStart,
                 periodEnd,
                 balances,
                 accountTotal,
-                accountTotal.subtract(dueTotal),
+                investments,
+                investedTotal,
+                cashTotal,
+                cashTotal.add(investedTotal),
                 dueTotal,
                 due.size(),
                 income(movement),
@@ -156,22 +163,53 @@ public class DashboardService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private BigDecimal income(List<TransactionRepository.KindTotal> movement) {
-        return movement.stream()
-                .filter(row -> row.getKind() == TransactionKind.ACCOUNT_CREDIT)
-                .map(TransactionRepository.KindTotal::getTotal)
+    /**
+     * The investments with their balance as of {@code asOf}. The arithmetic lives in
+     * {@link InvestmentService} so this and the investments page cannot drift apart.
+     */
+    private List<DashboardResponse.InvestmentBalance> investmentBalances(UUID ownerId, LocalDate asOf) {
+        Map<UUID, BigDecimal> balances = investmentService.balancesAsOf(ownerId, asOf);
+        Map<UUID, BigDecimal> contributed = investmentService.contributedAsOf(ownerId, asOf);
+
+        return investmentService.findAll(ownerId).stream()
+                .sorted(Comparator.comparing(Investment::getName))
+                .map(investment -> new DashboardResponse.InvestmentBalance(
+                        investment.getId(),
+                        investment.getName(),
+                        investment.getInstitution(),
+                        investment.getCurrency(),
+                        balances.getOrDefault(investment.getId(), investment.getInitialBalance()),
+                        contributed.getOrDefault(investment.getId(), investment.getInitialBalance())))
+                .toList();
+    }
+
+    private BigDecimal totalInvested(List<DashboardResponse.InvestmentBalance> balances) {
+        return balances.stream()
+                .map(DashboardResponse.InvestmentBalance::balance)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     /**
-     * What the month costs: account debits and card charges together.
+     * What the month earned: money from outside, plus the net return recognised on investments.
      *
-     * Settlements are already absent — {@link TransactionRepository#sumByKindInMonthDue} leaves
-     * them out, because paying an invoice is not a second expense on top of the charges it pays.
+     * A return counts when recorded rather than when redeemed, so income and "money that arrived
+     * in an account" are no longer the same figure — yield not yet redeemed cannot be spent, and
+     * a month whose losses outrun its earnings reports negative income rather than hiding them.
+     */
+    private BigDecimal income(List<TransactionRepository.KindTotal> movement) {
+        return movement.stream()
+                .map(row ->
+                        row.getTotal().multiply(BigDecimal.valueOf(row.getKind().incomeSign())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * What the month costs: account debits and card charges, named rather than inferred from "not
+     * income" — which made every kind the ledger gained spending until excluded by hand.
      */
     private BigDecimal expense(List<TransactionRepository.KindTotal> movement) {
         return movement.stream()
-                .filter(row -> row.getKind() != TransactionKind.ACCOUNT_CREDIT)
+                .filter(row -> row.getKind().isSpending())
                 .map(TransactionRepository.KindTotal::getTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }

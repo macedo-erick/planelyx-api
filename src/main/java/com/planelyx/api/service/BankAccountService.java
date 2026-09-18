@@ -38,6 +38,9 @@ public class BankAccountService {
      * already materialised as rows, a future {@code asOf} reads as a forecast rather than an
      * estimate.
      *
+     * The direction comes from {@link TransactionKind#accountSign()}: "a credit adds, everything
+     * else subtracts" held until a redemption arrived — an inflow that is not a credit.
+     *
      * Every account the owner holds appears in the result, including ones with no movement.
      */
     @Transactional(readOnly = true)
@@ -46,9 +49,8 @@ public class BankAccountService {
 
         for (TransactionRepository.AccountKindTotal row :
                 transactionRepository.sumByAccountAndKindAsOf(ownerId, asOf)) {
-            BigDecimal signed = row.getKind() == TransactionKind.ACCOUNT_CREDIT
-                    ? row.getTotal()
-                    : row.getTotal().negate();
+            BigDecimal signed =
+                    row.getTotal().multiply(BigDecimal.valueOf(row.getKind().accountSign()));
 
             movementByAccount.merge(row.getBankAccountId(), signed, BigDecimal::add);
         }
