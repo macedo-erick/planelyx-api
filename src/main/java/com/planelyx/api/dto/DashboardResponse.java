@@ -1,7 +1,9 @@
 package com.planelyx.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,6 +35,11 @@ import java.util.UUID;
  * {@code previousResult} is the same subtraction for the month before, so a client can say how
  * this month compares without a second round trip.
  *
+ * {@code trend} is the income and expense of the twelve months ending with this one, oldest
+ * first. Every month is present — one with no movement reads as zero rather than being left out,
+ * so a chart of it keeps an even time axis — and the last entry is this month's own {@code
+ * income} and {@code expense}.
+ *
  * {@code beyondGeneratedOccurrences} says the month sits past the last generated occurrence of an
  * open-ended recurring rule, so its figures are necessarily incomplete rather than simply low.
  */
@@ -51,6 +58,7 @@ public record DashboardResponse(
         BigDecimal expense,
         BigDecimal result,
         BigDecimal previousResult,
+        List<MonthMovement> trend,
         List<CategoryBreakdown> categoryBreakdown,
         BigDecimal outstandingInvoiceTotal,
         List<InvoiceResponse> upcomingInvoices,
@@ -73,6 +81,10 @@ public record DashboardResponse(
             String currency,
             BigDecimal balance,
             BigDecimal contributed) {}
+
+    /** One month of {@code trend}: the same two figures the dashboard shows for that month. */
+    public record MonthMovement(
+            @JsonFormat(pattern = "yyyy-MM") YearMonth month, BigDecimal income, BigDecimal expense) {}
 
     /**
      * One slice of {@code expense}. The slices total {@code expense}, so a chart of them agrees
