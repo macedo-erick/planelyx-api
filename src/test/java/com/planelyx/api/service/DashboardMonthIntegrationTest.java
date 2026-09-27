@@ -243,6 +243,48 @@ class DashboardMonthIntegrationTest extends AbstractIntegrationTest {
         assertEquals(0, dashboard.trend().get(9).expense().signum(), "not July, when it was bought");
     }
 
+    /**
+     * The list follows the month on screen: what falls due after it is not listed, and what an
+     * earlier month left unpaid leads, since that is the most urgent.
+     */
+    @Test
+    void theOwedListIsWhatIsStillOwedByTheEndOfTheMonthEarliestFirst() {
+        Fixture fixture = fixture(28, 5);
+
+        charge(fixture, "100.00", LocalDate.of(2026, 7, 30));
+        charge(fixture, "200.00", LocalDate.of(2026, 8, 30));
+
+        DashboardResponse september = dashboardService.forMonth(fixture.ownerId(), YearMonth.of(2026, 9));
+        DashboardResponse october = dashboardService.forMonth(fixture.ownerId(), YearMonth.of(2026, 10));
+
+        assertEquals(1, september.invoicesDue().size(), "October's invoice is not September's problem");
+        assertEquals(1, september.invoicesDueCount());
+        assertEquals(
+                LocalDate.of(2026, 9, 5), september.invoicesDue().getFirst().dueDate());
+
+        assertEquals(2, october.invoicesDue().size());
+        assertEquals(
+                LocalDate.of(2026, 9, 5),
+                october.invoicesDue().getFirst().dueDate(),
+                "the one left over from September leads");
+    }
+
+    /** Only a handful are sent, but the count and the total still cover every one of them. */
+    @Test
+    void theOwedListIsCappedWhileTheCountIsNot() {
+        Fixture fixture = fixture(28, 5);
+
+        for (int i = 0; i < 7; i++) {
+            charge(fixture, card(fixture, "Card " + i, 10, 20), "10.00", LocalDate.of(2026, 8, 6));
+        }
+
+        DashboardResponse dashboard = dashboardService.forMonth(fixture.ownerId(), YearMonth.of(2026, 8));
+
+        assertEquals(5, dashboard.invoicesDue().size());
+        assertEquals(7, dashboard.invoicesDueCount());
+        assertAmount("70.00", dashboard.invoicesDueTotal());
+    }
+
     private BigDecimal expense(Fixture fixture, YearMonth month) {
         return dashboardService.forMonth(fixture.ownerId(), month).expense();
     }

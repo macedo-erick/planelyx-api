@@ -22,6 +22,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -38,7 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class DashboardService {
 
-    private static final int UPCOMING_INVOICE_LIMIT = 5;
+    private static final int DUE_INVOICE_LIMIT = 5;
     private static final int CATEGORY_BREAKDOWN_LIMIT = 8;
     private static final int TREND_MONTHS = 12;
 
@@ -57,7 +58,6 @@ public class DashboardService {
         List<TransactionRepository.KindTotal> movement =
                 transactionRepository.sumByKindInMonthDue(ownerId, periodStart, periodEnd);
         List<Invoice> invoices = invoiceService.findAll(ownerId, null, null);
-        List<Invoice> unpaid = unpaid(invoices);
         List<Invoice> due = owedThrough(invoices, periodEnd);
         List<Transaction> bills = transactionRepository.findUnpaidBillsInMonth(ownerId, periodStart, periodEnd);
         BigDecimal dueTotal = total(due);
@@ -85,8 +85,8 @@ public class DashboardService {
                 result(ownerId, month.minusMonths(1)),
                 trend(ownerId, month),
                 categoryBreakdown(ownerId, periodStart, periodEnd),
-                total(unpaid),
-                upcomingInvoices(unpaid),
+                invoicesDue(due),
+                invoicesPaid(invoices, due, periodStart, periodEnd),
                 bills.stream().map(TransactionMapper::toResponse).toList(),
                 billsTotal(bills),
                 bills.size(),
@@ -316,23 +316,43 @@ public class DashboardService {
         return invoices.stream().map(Invoice::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private List<InvoiceResponse> upcomingInvoices(List<Invoice> unpaid) {
-        return unpaid.stream()
+    /**
+     * The invoices still owed by the end of the month, the same set {@code invoicesDueTotal} adds
+     * up, earliest first — so an overdue one from a previous month leads the list. Only the first
+     * few are sent; {@code invoicesDueCount} says how many there are in all.
+     */
+    private List<InvoiceResponse> invoicesDue(List<Invoice> due) {
+        return due.stream()
                 .sorted(Comparator.comparing(Invoice::getDueDate))
-                .limit(UPCOMING_INVOICE_LIMIT)
-                .map(invoice -> InvoiceMapper.toResponse(invoice, invoiceService.derivedStatus(invoice)))
+                .limit(DUE_INVOICE_LIMIT)
+                .map(this::toResponse)
                 .toList();
     }
 
     /**
-     * What is outstanding right now, for the figures that are not tied to the month being read —
-     * the running total and the list of what is coming. {@link #owedThrough} is the one that has
-     * to reason about a particular day.
+     * The month's invoices that are already settled: those falling due in it that {@code due} does
+     * not still hold. A card has one invoice a month, so this is bounded by the number of cards
+     * and needs no limit of its own.
+     *
+     * An invoice that came to nothing is left out. Paying a zero total posts no settlement, so it
+     * is marked paid without anything having been paid.
      */
-    private List<Invoice> unpaid(List<Invoice> invoices) {
+    private List<InvoiceResponse> invoicesPaid(
+            List<Invoice> invoices, List<Invoice> due, LocalDate periodStart, LocalDate periodEnd) {
+        Set<UUID> stillOwed = due.stream().map(Invoice::getId).collect(Collectors.toSet());
+
         return invoices.stream()
-                .filter(invoice -> invoiceService.derivedStatus(invoice) != InvoiceStatus.PAID)
+                .filter(invoice -> !invoice.getDueDate().isBefore(periodStart))
+                .filter(invoice -> !invoice.getDueDate().isAfter(periodEnd))
+                .filter(invoice -> !stillOwed.contains(invoice.getId()))
+                .filter(invoice -> invoice.getTotalAmount().signum() > 0)
+                .sorted(Comparator.comparing(Invoice::getDueDate))
+                .map(this::toResponse)
                 .toList();
+    }
+
+    private InvoiceResponse toResponse(Invoice invoice) {
+        return InvoiceMapper.toResponse(invoice, invoiceService.derivedStatus(invoice));
     }
 
     /**

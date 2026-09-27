@@ -21,6 +21,11 @@ import java.util.UUID;
  * accounts below it. An invoice already paid is in neither: paying one posts a settlement, so it
  * has left the balances already.
  *
+ * {@code invoicesDue} lists the invoices {@code invoicesDueTotal} adds up — still owed by the end
+ * of the month, earliest first, so an overdue one from before it leads — capped at a handful, with
+ * {@code invoicesDueCount} giving how many there are in all. {@code invoicesPaid} lists the ones
+ * falling due in the month that are already settled, so a client can show the whole month.
+ *
  * {@code billsDue} is not a fourth figure of that kind. It lists the month's recurring account
  * bills still to be ticked off, and every one is an ordinary transaction already inside {@code
  * accountBalanceTotal} — a reminder, nothing more. Subtracting {@code billsDueTotal} from anything
@@ -60,8 +65,8 @@ public record DashboardResponse(
         BigDecimal previousResult,
         List<MonthMovement> trend,
         List<CategoryBreakdown> categoryBreakdown,
-        BigDecimal outstandingInvoiceTotal,
-        List<InvoiceResponse> upcomingInvoices,
+        List<InvoiceResponse> invoicesDue,
+        List<InvoiceResponse> invoicesPaid,
         List<TransactionResponse> billsDue,
         BigDecimal billsDueTotal,
         int billsDueCount,
