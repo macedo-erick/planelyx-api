@@ -19,11 +19,13 @@ import com.planelyx.api.dto.CategoryRequest;
 import com.planelyx.api.dto.CreditCardRequest;
 import com.planelyx.api.dto.DashboardResponse;
 import com.planelyx.api.dto.InvoicePaymentRequest;
+import com.planelyx.api.dto.InvoiceResponse;
 import com.planelyx.api.dto.TransactionRequest;
 import com.planelyx.api.repository.TransactionRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -204,6 +206,54 @@ class InvoicePaymentIntegrationTest extends AbstractIntegrationTest {
         assertEquals(0, before.totalBalance().compareTo(after.totalBalance()), "the debt did not evaporate");
     }
 
+    /** Settling an invoice moves it from the month's owed list to its paid one. */
+    @Test
+    void aSettledInvoiceMovesFromTheOwedListToThePaidOne() {
+        Fixture fixture = invoice("400.00");
+        UUID invoiceId = fixture.invoice().getId();
+
+        DashboardResponse before = dashboard(fixture);
+
+        assertEquals(List.of(invoiceId), ids(before.invoicesDue()));
+        assertTrue(before.invoicesPaid().isEmpty());
+
+        pay(fixture);
+
+        DashboardResponse after = dashboard(fixture);
+
+        assertTrue(after.invoicesDue().isEmpty());
+        assertEquals(List.of(invoiceId), ids(after.invoicesPaid()));
+    }
+
+    /**
+     * Paid, but only after the month ended, so it was still owed in it: it stays with the owed ones
+     * rather than turning up in both lists, or in the wrong one.
+     */
+    @Test
+    void anInvoiceSettledAfterTheMonthStaysOnTheOwedList() {
+        Fixture fixture = invoice("400.00");
+
+        invoiceService.pay(
+                fixture.invoice().getId(),
+                new InvoicePaymentRequest(DUE_MONTH.plusMonths(1).atDay(3), null, null),
+                fixture.ownerId());
+
+        DashboardResponse dashboard = dashboard(fixture);
+
+        assertEquals(List.of(fixture.invoice().getId()), ids(dashboard.invoicesDue()));
+        assertTrue(dashboard.invoicesPaid().isEmpty());
+    }
+
+    /** Paying nothing posts no settlement, so there is no payment to list. */
+    @Test
+    void anInvoiceOfNothingIsNotListedAsPaid() {
+        Fixture fixture = invoice("0.00");
+
+        pay(fixture);
+
+        assertTrue(dashboard(fixture).invoicesPaid().isEmpty());
+    }
+
     /** The API has no translations, so the wording a user reads has to come from the client. */
     @Test
     void theClientsWordingIsKept() {
@@ -285,6 +335,10 @@ class InvoicePaymentIntegrationTest extends AbstractIntegrationTest {
         return transactionRepository
                 .findByInvoiceIdAndKind(fixture.invoice().getId(), TransactionKind.INVOICE_PAYMENT)
                 .orElseThrow(() -> new AssertionError("No settlement was posted"));
+    }
+
+    private List<UUID> ids(List<InvoiceResponse> invoices) {
+        return invoices.stream().map(InvoiceResponse::id).toList();
     }
 
     private DashboardResponse dashboard(Fixture fixture) {
