@@ -123,6 +123,27 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID>,
     List<KindTotal> sumByKindInMonthDue(UUID ownerId, LocalDate from, LocalDate to);
 
     /**
+     * {@link #sumByKindInMonthDue} across several months at once, split by the month each row is
+     * dated to, so a trend costs one query rather than one per month. Same kinds and the same
+     * dating rule; keep the two in step.
+     */
+    @Query("select extract(year from coalesce(i.dueDate, t.transactionDate)) as year, "
+            + "extract(month from coalesce(i.dueDate, t.transactionDate)) as month, "
+            + "t.kind as kind, coalesce(sum(t.amount), 0) as total "
+            + "from Transaction t left join t.invoice i "
+            + "where t.ownerId = :ownerId "
+            + "and t.kind in ("
+            + "  com.planelyx.api.domain.enums.TransactionKind.ACCOUNT_DEBIT, "
+            + "  com.planelyx.api.domain.enums.TransactionKind.ACCOUNT_CREDIT, "
+            + "  com.planelyx.api.domain.enums.TransactionKind.CARD_CHARGE, "
+            + "  com.planelyx.api.domain.enums.TransactionKind.INVESTMENT_YIELD, "
+            + "  com.planelyx.api.domain.enums.TransactionKind.INVESTMENT_LOSS) "
+            + "and coalesce(i.dueDate, t.transactionDate) between :from and :to "
+            + "group by extract(year from coalesce(i.dueDate, t.transactionDate)), "
+            + "extract(month from coalesce(i.dueDate, t.transactionDate)), t.kind")
+    List<MonthKindTotal> sumByKindAndMonthDue(UUID ownerId, LocalDate from, LocalDate to);
+
+    /**
      * When each of these invoices was actually settled.
      *
      * {@code Invoice.status} says whether an invoice is paid, but not when — and paying is no
@@ -208,6 +229,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID>,
         TransactionKind getKind();
 
         BigDecimal getTotal();
+    }
+
+    interface MonthKindTotal extends KindTotal {
+        Integer getYear();
+
+        Integer getMonth();
     }
 
     interface CategoryTotal {

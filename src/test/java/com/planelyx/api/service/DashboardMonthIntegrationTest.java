@@ -176,6 +176,73 @@ class DashboardMonthIntegrationTest extends AbstractIntegrationTest {
         assertAmount("300.00", dashboard.previousResult());
     }
 
+    /**
+     * Twelve months ending with the one on screen, oldest first — here spanning a new year — with
+     * a quiet month present at zero rather than missing, so the chart keeps an even axis.
+     */
+    @Test
+    void theTrendCoversTheTwelveMonthsEndingWithThisOne() {
+        Fixture fixture = fixture(28, 5);
+
+        credit(fixture, "1000.00", LocalDate.of(2025, 3, 5));
+        debit(fixture, "400.00", LocalDate.of(2025, 3, 20));
+        credit(fixture, "1200.00", LocalDate.of(2026, 2, 5));
+        debit(fixture, "700.00", LocalDate.of(2026, 2, 15));
+
+        DashboardResponse dashboard = dashboardService.forMonth(fixture.ownerId(), YearMonth.of(2026, 2));
+
+        assertEquals(12, dashboard.trend().size());
+        assertEquals(YearMonth.of(2025, 3), dashboard.trend().getFirst().month());
+        assertEquals(YearMonth.of(2026, 2), dashboard.trend().getLast().month());
+
+        DashboardResponse.MonthMovement oldest = dashboard.trend().getFirst();
+        assertAmount("1000.00", oldest.income());
+        assertAmount("400.00", oldest.expense());
+
+        DashboardResponse.MonthMovement quiet = dashboard.trend().get(6);
+        assertEquals(YearMonth.of(2025, 9), quiet.month());
+        assertEquals(0, quiet.income().signum());
+        assertEquals(0, quiet.expense().signum());
+    }
+
+    /** Nothing from after the month on screen, and nothing from before the window. */
+    @Test
+    void theTrendStopsAtTheMonthOnScreen() {
+        Fixture fixture = fixture(28, 5);
+
+        debit(fixture, "90.00", LocalDate.of(2025, 7, 31));
+        debit(fixture, "60.00", LocalDate.of(2026, 8, 1));
+
+        DashboardResponse dashboard = dashboardService.forMonth(fixture.ownerId(), YearMonth.of(2026, 7));
+
+        BigDecimal charted = dashboard.trend().stream()
+                .map(DashboardResponse.MonthMovement::expense)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        assertEquals(0, charted.signum());
+    }
+
+    /**
+     * The last point is the month on screen, and it has to agree with the tiles — including a card
+     * charge, which lands in the month its invoice falls due rather than the month it was bought.
+     */
+    @Test
+    void theTrendEndsOnTheFiguresOnScreen() {
+        Fixture fixture = fixture(28, 5);
+
+        credit(fixture, "900.00", LocalDate.of(2026, 9, 1));
+        charge(fixture, "100.00", LocalDate.of(2026, 7, 30));
+        debit(fixture, "50.00", LocalDate.of(2026, 9, 12));
+
+        DashboardResponse dashboard = dashboardService.forMonth(fixture.ownerId(), YearMonth.of(2026, 9));
+        DashboardResponse.MonthMovement last = dashboard.trend().getLast();
+
+        assertEquals(0, dashboard.income().compareTo(last.income()));
+        assertEquals(0, dashboard.expense().compareTo(last.expense()));
+        assertAmount("150.00", last.expense());
+        assertEquals(0, dashboard.trend().get(9).expense().signum(), "not July, when it was bought");
+    }
+
     private BigDecimal expense(Fixture fixture, YearMonth month) {
         return dashboardService.forMonth(fixture.ownerId(), month).expense();
     }

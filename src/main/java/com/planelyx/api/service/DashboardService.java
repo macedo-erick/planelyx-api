@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +40,7 @@ public class DashboardService {
 
     private static final int UPCOMING_INVOICE_LIMIT = 5;
     private static final int CATEGORY_BREAKDOWN_LIMIT = 8;
+    private static final int TREND_MONTHS = 12;
 
     private final TransactionRepository transactionRepository;
     private final TransactionTemplateRepository transactionTemplateRepository;
@@ -81,6 +83,7 @@ public class DashboardService {
                 expense,
                 income.subtract(expense),
                 result(ownerId, month.minusMonths(1)),
+                trend(ownerId, month),
                 categoryBreakdown(ownerId, periodStart, periodEnd),
                 total(unpaid),
                 upcomingInvoices(unpaid),
@@ -200,7 +203,7 @@ public class DashboardService {
      * in an account" are no longer the same figure — yield not yet redeemed cannot be spent, and
      * a month whose losses outrun its earnings reports negative income rather than hiding them.
      */
-    private BigDecimal income(List<TransactionRepository.KindTotal> movement) {
+    private BigDecimal income(List<? extends TransactionRepository.KindTotal> movement) {
         return movement.stream()
                 .map(row ->
                         row.getTotal().multiply(BigDecimal.valueOf(row.getKind().incomeSign())))
@@ -211,7 +214,7 @@ public class DashboardService {
      * What the month costs: account debits and card charges, named rather than inferred from "not
      * income" — which made every kind the ledger gained spending until excluded by hand.
      */
-    private BigDecimal expense(List<TransactionRepository.KindTotal> movement) {
+    private BigDecimal expense(List<? extends TransactionRepository.KindTotal> movement) {
         return movement.stream()
                 .filter(row -> row.getKind().isSpending())
                 .map(TransactionRepository.KindTotal::getTotal)
@@ -227,6 +230,30 @@ public class DashboardService {
                 transactionRepository.sumByKindInMonthDue(ownerId, month.atDay(1), month.atEndOfMonth());
 
         return income(movement).subtract(expense(movement));
+    }
+
+    /**
+     * {@link #income} and {@link #expense} for each of the twelve months ending with {@code
+     * month}, oldest first, from a single query and the same arithmetic as the tiles — so the
+     * last point on the chart is the figure printed above it.
+     *
+     * A month with no rows still gets a point, at zero: leaving it out would have the chart join
+     * its neighbours straight across the gap.
+     */
+    private List<DashboardResponse.MonthMovement> trend(UUID ownerId, YearMonth month) {
+        YearMonth first = month.minusMonths(TREND_MONTHS - 1);
+
+        Map<YearMonth, List<TransactionRepository.MonthKindTotal>> byMonth =
+                transactionRepository.sumByKindAndMonthDue(ownerId, first.atDay(1), month.atEndOfMonth()).stream()
+                        .collect(Collectors.groupingBy(row -> YearMonth.of(row.getYear(), row.getMonth())));
+
+        return Stream.iterate(first, current -> current.plusMonths(1))
+                .limit(TREND_MONTHS)
+                .map(current -> {
+                    List<TransactionRepository.MonthKindTotal> movement = byMonth.getOrDefault(current, List.of());
+                    return new DashboardResponse.MonthMovement(current, income(movement), expense(movement));
+                })
+                .toList();
     }
 
     /**
