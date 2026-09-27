@@ -63,6 +63,8 @@ public class DashboardService {
         List<DashboardResponse.InvestmentBalance> investments = investmentBalances(ownerId, periodEnd);
         BigDecimal investedTotal = totalInvested(investments);
         BigDecimal cashTotal = accountTotal.subtract(dueTotal);
+        BigDecimal income = income(movement);
+        BigDecimal expense = expense(movement);
 
         return new DashboardResponse(
                 periodStart,
@@ -75,8 +77,10 @@ public class DashboardService {
                 cashTotal.add(investedTotal),
                 dueTotal,
                 due.size(),
-                income(movement),
-                expense(movement),
+                income,
+                expense,
+                income.subtract(expense),
+                result(ownerId, month.minusMonths(1)),
                 categoryBreakdown(ownerId, periodStart, periodEnd),
                 total(unpaid),
                 upcomingInvoices(unpaid),
@@ -212,6 +216,17 @@ public class DashboardService {
                 .filter(row -> row.getKind().isSpending())
                 .map(TransactionRepository.KindTotal::getTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * {@link #income} less {@link #expense} for a month other than the one being read, taken from
+     * the same totals so the comparison cannot drift from the figures on screen.
+     */
+    private BigDecimal result(UUID ownerId, YearMonth month) {
+        List<TransactionRepository.KindTotal> movement =
+                transactionRepository.sumByKindInMonthDue(ownerId, month.atDay(1), month.atEndOfMonth());
+
+        return income(movement).subtract(expense(movement));
     }
 
     /**

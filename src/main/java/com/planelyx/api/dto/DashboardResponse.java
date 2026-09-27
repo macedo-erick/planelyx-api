@@ -29,6 +29,10 @@ import java.util.UUID;
  * {@code netWorth} is {@code totalBalance} plus {@code investedTotal} — the one number that does
  * not move when money is contributed.
  *
+ * {@code result} is {@code income} less {@code expense} — what the month left over, or overspent.
+ * {@code previousResult} is the same subtraction for the month before, so a client can say how
+ * this month compares without a second round trip.
+ *
  * {@code beyondGeneratedOccurrences} says the month sits past the last generated occurrence of an
  * open-ended recurring rule, so its figures are necessarily incomplete rather than simply low.
  */
@@ -45,6 +49,8 @@ public record DashboardResponse(
         int invoicesDueCount,
         BigDecimal income,
         BigDecimal expense,
+        BigDecimal result,
+        BigDecimal previousResult,
         List<CategoryBreakdown> categoryBreakdown,
         BigDecimal outstandingInvoiceTotal,
         List<InvoiceResponse> upcomingInvoices,

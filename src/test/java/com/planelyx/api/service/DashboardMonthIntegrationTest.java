@@ -156,6 +156,26 @@ class DashboardMonthIntegrationTest extends AbstractIntegrationTest {
         assertAmount("250.00", dashboard.invoicesDueTotal());
     }
 
+    /**
+     * The month's result is what came in less what went out, and the month before is worked out
+     * the same way so the two can be compared.
+     */
+    @Test
+    void theResultIsIncomeLessExpenseAlongsideTheMonthBefore() {
+        Fixture fixture = fixture(28, 5);
+
+        credit(fixture, "500.00", LocalDate.of(2026, 7, 5));
+        debit(fixture, "200.00", LocalDate.of(2026, 7, 10));
+        credit(fixture, "400.00", LocalDate.of(2026, 8, 5));
+        debit(fixture, "450.00", LocalDate.of(2026, 8, 10));
+
+        DashboardResponse dashboard = dashboardService.forMonth(fixture.ownerId(), YearMonth.of(2026, 8));
+
+        assertAmount("-50.00", dashboard.result());
+        assertEquals(0, dashboard.income().subtract(dashboard.expense()).compareTo(dashboard.result()));
+        assertAmount("300.00", dashboard.previousResult());
+    }
+
     private BigDecimal expense(Fixture fixture, YearMonth month) {
         return dashboardService.forMonth(fixture.ownerId(), month).expense();
     }
@@ -204,6 +224,19 @@ class DashboardMonthIntegrationTest extends AbstractIntegrationTest {
                         new BigDecimal(amount),
                         date,
                         "Purchase"),
+                fixture.ownerId());
+    }
+
+    private void credit(Fixture fixture, String amount, LocalDate date) {
+        transactionService.create(
+                new TransactionRequest(
+                        TransactionKind.ACCOUNT_CREDIT,
+                        fixture.account().getId(),
+                        null,
+                        fixture.category().getId(),
+                        new BigDecimal(amount),
+                        date,
+                        "Salary"),
                 fixture.ownerId());
     }
 
