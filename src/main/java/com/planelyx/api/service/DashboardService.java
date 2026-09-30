@@ -39,7 +39,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class DashboardService {
 
-    private static final int DUE_INVOICE_LIMIT = 5;
     private static final int CATEGORY_BREAKDOWN_LIMIT = 8;
     private static final int TREND_MONTHS = 12;
 
@@ -318,13 +317,13 @@ public class DashboardService {
 
     /**
      * The invoices still owed by the end of the month, the same set {@code invoicesDueTotal} adds
-     * up, earliest first — so an overdue one from a previous month leads the list. Only the first
-     * few are sent; {@code invoicesDueCount} says how many there are in all.
+     * up, earliest first — so an overdue one from a previous month leads the list. All of them are
+     * sent, so a client can expand the list in place rather than point at a page that cannot show
+     * them; they are one per card per month, so the list stays short.
      */
     private List<InvoiceResponse> invoicesDue(List<Invoice> due) {
         return due.stream()
                 .sorted(Comparator.comparing(Invoice::getDueDate))
-                .limit(DUE_INVOICE_LIMIT)
                 .map(this::toResponse)
                 .toList();
     }
