@@ -269,9 +269,12 @@ class DashboardMonthIntegrationTest extends AbstractIntegrationTest {
                 "the one left over from September leads");
     }
 
-    /** Only a handful are sent, but the count and the total still cover every one of them. */
+    /**
+     * Every owed invoice is sent, not just the first few, so the dashboard can expand the list in
+     * place; the count and the total cover the same set.
+     */
     @Test
-    void theOwedListIsCappedWhileTheCountIsNot() {
+    void theOwedListCarriesEveryInvoiceItCounts() {
         Fixture fixture = fixture(28, 5);
 
         for (int i = 0; i < 7; i++) {
@@ -280,7 +283,7 @@ class DashboardMonthIntegrationTest extends AbstractIntegrationTest {
 
         DashboardResponse dashboard = dashboardService.forMonth(fixture.ownerId(), YearMonth.of(2026, 8));
 
-        assertEquals(5, dashboard.invoicesDue().size());
+        assertEquals(7, dashboard.invoicesDue().size());
         assertEquals(7, dashboard.invoicesDueCount());
         assertAmount("70.00", dashboard.invoicesDueTotal());
     }
