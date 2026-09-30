@@ -22,8 +22,8 @@ import java.util.UUID;
  * has left the balances already.
  *
  * {@code invoicesDue} lists the invoices {@code invoicesDueTotal} adds up — still owed by the end
- * of the month, earliest first, so an overdue one from before it leads — capped at a handful, with
- * {@code invoicesDueCount} giving how many there are in all. {@code invoicesPaid} lists the ones
+ * of the month, earliest first, so an overdue one from before it leads — every one of them, with
+ * {@code invoicesDueCount} as their number. {@code invoicesPaid} lists the ones
  * falling due in the month that are already settled, so a client can show the whole month.
  *
  * {@code billsDue} is not a fourth figure of that kind. It lists the month's recurring account
