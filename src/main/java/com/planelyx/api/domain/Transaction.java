@@ -11,6 +11,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -96,4 +98,39 @@ public class Transaction extends Auditable {
 
     @Column(nullable = false)
     private boolean paid;
+
+    @Column(name = "paid_date")
+    private LocalDate paidDate;
+
+    /**
+     * Settles the entry on {@code on}, or reopens it.
+     *
+     * Settling one already paid keeps the day it was first paid; ticking it off again is not a
+     * second payment.
+     */
+    public void markPaid(boolean paid, LocalDate on) {
+        if (paid && !this.paid) {
+            this.paidDate = on;
+        }
+
+        this.paid = paid;
+    }
+
+    /**
+     * Keeps {@code paidDate} in step with {@code paid} for every write that sets the flag alone.
+     *
+     * An entry settled the moment it is written was paid on its own date — or today, for one dated
+     * ahead, since nothing is paid in the future.
+     */
+    @PrePersist
+    @PreUpdate
+    void alignPaidDate() {
+        if (!paid) {
+            paidDate = null;
+        } else if (paidDate == null) {
+            LocalDate today = LocalDate.now();
+
+            paidDate = transactionDate.isAfter(today) ? today : transactionDate;
+        }
+    }
 }

@@ -2,6 +2,7 @@ package com.planelyx.api.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -118,7 +119,61 @@ class BillsIntegrationTest extends AbstractIntegrationTest {
         transactionService.markPaid(billId, true, fixture.ownerId());
         transactionService.markPaid(billId, false, fixture.ownerId());
 
-        assertEquals(1, dashboard(fixture).billsDueCount());
+        DashboardResponse dashboard = dashboard(fixture);
+
+        assertEquals(1, dashboard.billsDueCount());
+        assertTrue(dashboard.billsPaid().isEmpty(), "it leaves the paid list as it goes back");
+        assertNull(dashboard.billsDue().getFirst().paidDate(), "and forgets the day it was paid");
+    }
+
+    /** Ticked off, a bill stays on the dashboard with the month's paid ones, dated the day it was. */
+    @Test
+    void aTickedOffBillMovesToThePaidList() {
+        Fixture fixture = withMonthlyBill("Rent", "1500.00");
+        UUID billId = dashboard(fixture).billsDue().getFirst().id();
+
+        transactionService.markPaid(billId, true, fixture.ownerId());
+
+        DashboardResponse dashboard = dashboard(fixture);
+
+        assertEquals(1, dashboard.billsPaid().size());
+        assertEquals(billId, dashboard.billsPaid().getFirst().id());
+        assertEquals(LocalDate.now(), dashboard.billsPaid().getFirst().paidDate());
+    }
+
+    /** Only the month on screen: a bill paid in another month is that month's. */
+    @Test
+    void thePaidListKeepsToTheMonth() {
+        Fixture fixture = withMonthlyBill("Rent", "1500.00");
+        UUID nextMonthsBill = dashboardService
+                .forMonth(fixture.ownerId(), BILL_MONTH.plusMonths(1))
+                .billsDue()
+                .getFirst()
+                .id();
+
+        transactionService.markPaid(nextMonthsBill, true, fixture.ownerId());
+
+        assertTrue(dashboard(fixture).billsPaid().isEmpty());
+    }
+
+    /** Filed as paid before it falls due: it was paid today, not on a day still to come. */
+    @Test
+    void aBillPaidInAdvanceIsDatedToday() {
+        Fixture fixture = base();
+
+        Transaction bill = transactionService.create(
+                new TransactionRequest(
+                        TransactionKind.ACCOUNT_DEBIT,
+                        fixture.account().getId(),
+                        null,
+                        fixture.category().getId(),
+                        new BigDecimal("120.00"),
+                        LocalDate.now().plusDays(5),
+                        "Internet",
+                        true),
+                fixture.ownerId());
+
+        assertEquals(LocalDate.now(), bill.getPaidDate());
     }
 
     /** A card charge is settled through its invoice, all at once. It is not a bill of its own. */
@@ -270,6 +325,7 @@ class BillsIntegrationTest extends AbstractIntegrationTest {
                 fixture.ownerId());
 
         assertTrue(groceries.isPaid());
+        assertEquals(groceries.getTransactionDate(), groceries.getPaidDate(), "paid on its own date");
     }
 
     /**

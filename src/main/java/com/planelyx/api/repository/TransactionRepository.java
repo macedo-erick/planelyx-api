@@ -179,6 +179,21 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID>,
     List<Transaction> findUnpaidBillsInMonth(UUID ownerId, LocalDate from, LocalDate to);
 
     /**
+     * The month's bills already ticked off, in the order they were paid.
+     *
+     * The same bills as {@link #findUnpaidBillsInMonth} from the other side, so the two together
+     * are the whole month. Keep the two in step.
+     */
+    @Query("select t from Transaction t "
+            + "where t.ownerId = :ownerId "
+            + "and t.kind = com.planelyx.api.domain.enums.TransactionKind.ACCOUNT_DEBIT "
+            + "and t.paid = true "
+            + "and t.template is not null "
+            + "and t.transactionDate between :from and :to "
+            + "order by t.paidDate, t.transactionDate")
+    List<Transaction> findPaidBillsInMonth(UUID ownerId, LocalDate from, LocalDate to);
+
+    /**
      * The same window and the same dating rule, broken down by category.
      *
      * Narrower than {@link #sumByKindInMonthDue} by two kinds, deliberately: this charts what a
