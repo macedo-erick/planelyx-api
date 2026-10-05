@@ -33,6 +33,7 @@ public final class TransactionMapper {
                 transaction.getPurchaseDate(),
                 transaction.getDescription(),
                 transaction.isPaid(),
+                transaction.getPaidDate(),
                 transaction.getCreatedAt());
     }
 }

@@ -357,7 +357,7 @@ public class TransactionService {
             throw new IllegalArgumentException("Only an account debit can be paid off on its own: " + id);
         }
 
-        target.setPaid(paid);
+        target.markPaid(paid, LocalDate.now());
 
         return transactionRepository.save(target);
     }
