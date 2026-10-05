@@ -15,6 +15,8 @@ import java.util.UUID;
  * for anything bought outright; for an installment it is the start date of the template it came
  * from, since occurrences are generated a month apart and a sofa bought on 25 January is dated
  * 25 March in the March invoice.
+ *
+ * {@code paidDate} is the day the entry was settled, present exactly when {@code paid} is.
  */
 public record TransactionResponse(
         UUID id,
@@ -31,4 +33,5 @@ public record TransactionResponse(
         LocalDate purchaseDate,
         String description,
         boolean paid,
+        LocalDate paidDate,
         Instant createdAt) {}

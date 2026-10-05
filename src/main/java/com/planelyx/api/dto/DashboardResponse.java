@@ -29,7 +29,8 @@ import java.util.UUID;
  * {@code billsDue} is not a fourth figure of that kind. It lists the month's recurring account
  * bills still to be ticked off, and every one is an ordinary transaction already inside {@code
  * accountBalanceTotal} — a reminder, nothing more. Subtracting {@code billsDueTotal} from anything
- * counts the same money twice.
+ * counts the same money twice. {@code billsPaid} lists the month's bills already ticked off, in
+ * the order they were paid, so a client can show the whole month as it does with invoices.
  *
  * {@code investedTotal} stands apart from those on purpose: folding it into {@code
  * accountBalanceTotal} would stop that figure reconciling against a bank statement.
@@ -70,6 +71,7 @@ public record DashboardResponse(
         List<TransactionResponse> billsDue,
         BigDecimal billsDueTotal,
         int billsDueCount,
+        List<TransactionResponse> billsPaid,
         boolean beyondGeneratedOccurrences) {
 
     public record AccountBalance(

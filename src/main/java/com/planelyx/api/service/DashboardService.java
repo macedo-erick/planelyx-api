@@ -59,6 +59,7 @@ public class DashboardService {
         List<Invoice> invoices = invoiceService.findAll(ownerId, null, null);
         List<Invoice> due = owedThrough(invoices, periodEnd);
         List<Transaction> bills = transactionRepository.findUnpaidBillsInMonth(ownerId, periodStart, periodEnd);
+        List<Transaction> paidBills = transactionRepository.findPaidBillsInMonth(ownerId, periodStart, periodEnd);
         BigDecimal dueTotal = total(due);
         BigDecimal accountTotal = totalBalance(balances);
         List<DashboardResponse.InvestmentBalance> investments = investmentBalances(ownerId, periodEnd);
@@ -89,6 +90,7 @@ public class DashboardService {
                 bills.stream().map(TransactionMapper::toResponse).toList(),
                 billsTotal(bills),
                 bills.size(),
+                paidBills.stream().map(TransactionMapper::toResponse).toList(),
                 beyondGeneratedOccurrences(ownerId, month));
     }
 
