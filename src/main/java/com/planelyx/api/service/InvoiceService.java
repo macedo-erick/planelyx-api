@@ -59,10 +59,11 @@ public class InvoiceService {
     /**
      * The billing period a charge falls into, and when that period falls due.
      *
-     * The closing day is inclusive: a charge dated on it belongs to the period ending that day, and
-     * only the day after starts the next one. So a card closing on the 28th and due on the 5th puts
-     * a charge from 30 Jul through one on 28 Aug onto the period 29 Jul – 28 Aug, due 5 Sep; a
-     * charge on 29 Aug starts the following period, due 5 Oct.
+     * The closing day itself starts the next period rather than finishing the current one: a real
+     * card has already cut off by the time the day is through, so a charge dated on it is too late
+     * for the invoice that is closing. So a card closing on the 28th and due on the 5th puts a
+     * charge from 28 Jul through one on 27 Aug onto the period 28 Jul – 27 Aug, due 5 Sep; a charge
+     * on 28 Aug already starts the following period, due 5 Oct.
      *
      * Note that such a period closes in August but is due in September, and it is September that
      * the owner calls it — see {@link com.planelyx.api.dto.InvoiceResponse#referenceMonth()}. The
@@ -72,13 +73,12 @@ public class InvoiceService {
         YearMonth transactionMonth = YearMonth.from(transactionDate);
         LocalDate closingThisMonth = dateForDay(transactionMonth, card.getClosingDay());
 
-        LocalDate periodEnd = transactionDate.isAfter(closingThisMonth)
-                ? dateForDay(transactionMonth.plusMonths(1), card.getClosingDay())
+        LocalDate periodStart = transactionDate.isBefore(closingThisMonth)
+                ? dateForDay(transactionMonth.minusMonths(1), card.getClosingDay())
                 : closingThisMonth;
 
-        YearMonth periodEndMonth = YearMonth.from(periodEnd);
-        LocalDate previousClosing = dateForDay(periodEndMonth.minusMonths(1), card.getClosingDay());
-        LocalDate periodStart = previousClosing.plusDays(1);
+        LocalDate periodEnd = dateForDay(YearMonth.from(periodStart).plusMonths(1), card.getClosingDay())
+                .minusDays(1);
 
         return new BillingPeriod(periodStart, periodEnd, dueDateFor(card, periodEnd));
     }
