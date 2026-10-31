@@ -148,7 +148,8 @@ class InvoiceServiceTest {
 
     @Test
     void derivedStatusIsOpenTheDayBeforeClosing() {
-        Invoice invoice = Invoice.builder().billingPeriodEnd(LocalDate.now().plusDays(1)).build();
+        Invoice invoice =
+                Invoice.builder().billingPeriodEnd(LocalDate.now().plusDays(1)).build();
 
         assertEquals(InvoiceStatus.OPEN, invoiceService.derivedStatus(invoice));
     }
