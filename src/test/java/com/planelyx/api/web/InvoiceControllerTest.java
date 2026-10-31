@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -77,6 +78,42 @@ class InvoiceControllerTest {
         mockMvc.perform(get("/api/invoices")).andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void closesAnInvoiceEarly() throws Exception {
+        when(invoiceService.closeEarly(any(), any())).thenReturn(invoice());
+        when(invoiceService.derivedStatus(any())).thenReturn(InvoiceStatus.CLOSED);
+
+        mockMvc.perform(post("/api/invoices/{id}/close-early", INVOICE_ID)
+                        .with(jwt().jwt(jwt -> jwt.subject(OWNER_ID.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"));
+
+        verify(invoiceService).closeEarly(INVOICE_ID, OWNER_ID);
+    }
+
+    @Test
+    void reopensAnEarlyClosedInvoice() throws Exception {
+        when(invoiceService.reopen(any(), any())).thenReturn(invoice());
+        when(invoiceService.derivedStatus(any())).thenReturn(InvoiceStatus.OPEN);
+
+        mockMvc.perform(post("/api/invoices/{id}/reopen", INVOICE_ID)
+                        .with(jwt().jwt(jwt -> jwt.subject(OWNER_ID.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("OPEN"));
+
+        verify(invoiceService).reopen(INVOICE_ID, OWNER_ID);
+    }
+
+    @Test
+    void closeEarlyRejectsUnauthenticatedRequests() throws Exception {
+        mockMvc.perform(post("/api/invoices/{id}/close-early", INVOICE_ID)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void reopenRejectsUnauthenticatedRequests() throws Exception {
+        mockMvc.perform(post("/api/invoices/{id}/reopen", INVOICE_ID)).andExpect(status().isUnauthorized());
+    }
+
     private Invoice invoice() {
         return Invoice.builder()
                 .id(INVOICE_ID)
@@ -89,7 +126,6 @@ class InvoiceControllerTest {
                 .billingPeriodEnd(LocalDate.of(2026, 8, 28))
                 .dueDate(LocalDate.of(2026, 9, 5))
                 .totalAmount(new BigDecimal("200.00"))
-                .status(InvoiceStatus.OPEN)
                 .build();
     }
 }

@@ -22,17 +22,17 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
     void deleteAllByCreditCardId(UUID creditCardId);
 
     /**
-     * How much of a card's limit is still committed. The stored status is only ever PAID once the
-     * invoice has been settled — OPEN vs CLOSED is derived from the date at read time — so filtering
-     * on the column here is exactly "not yet paid".
+     * How much of a card's limit is still committed. {@code paidAt} is the one fact that matters
+     * here — OPEN vs CLOSED is derived from the date at read time, never stored — so filtering on
+     * it being unset is exactly "not yet paid".
      */
     @Query("select coalesce(sum(i.totalAmount), 0) from Invoice i "
-            + "where i.creditCard.id = :creditCardId and i.status <> com.planelyx.api.domain.enums.InvoiceStatus.PAID")
+            + "where i.creditCard.id = :creditCardId and i.paidAt is null")
     BigDecimal sumUnpaidTotalByCreditCardId(UUID creditCardId);
 
     /** The same figure for every card an owner holds, so the list endpoint stays at one query. */
     @Query("select i.creditCard.id as creditCardId, sum(i.totalAmount) as total from Invoice i "
-            + "where i.creditCard.ownerId = :ownerId and i.status <> com.planelyx.api.domain.enums.InvoiceStatus.PAID "
+            + "where i.creditCard.ownerId = :ownerId and i.paidAt is null "
             + "group by i.creditCard.id")
     List<CardTotal> sumUnpaidTotalsByOwnerId(UUID ownerId);
 

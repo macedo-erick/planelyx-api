@@ -44,6 +44,13 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID>,
             + "and t.kind <> com.planelyx.api.domain.enums.TransactionKind.INVOICE_PAYMENT")
     Page<Transaction> findChargesByInvoiceId(UUID invoiceId, Pageable pageable);
 
+    /** The dead zone: charges on the invoice dated after it closed early, that belong to the next one now. */
+    @EntityGraph(attributePaths = "template")
+    @Query("select t from Transaction t where t.invoice.id = :invoiceId "
+            + "and t.kind <> com.planelyx.api.domain.enums.TransactionKind.INVOICE_PAYMENT "
+            + "and t.transactionDate > :cutoff")
+    List<Transaction> findChargesByInvoiceIdAfter(UUID invoiceId, LocalDate cutoff);
+
     List<Transaction> findAllByTemplateId(UUID templateId);
 
     void deleteAllByCreditCardId(UUID creditCardId);

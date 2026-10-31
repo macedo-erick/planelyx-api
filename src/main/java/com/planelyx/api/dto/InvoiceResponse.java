@@ -26,4 +26,5 @@ public record InvoiceResponse(
         BigDecimal totalAmount,
         InvoiceStatus status,
         Instant paidAt,
+        LocalDate closedEarlyOn,
         Instant createdAt) {}
