@@ -3,6 +3,9 @@ package com.planelyx.api.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.planelyx.api.domain.CreditCard;
+import com.planelyx.api.domain.Invoice;
+import com.planelyx.api.domain.enums.InvoiceStatus;
+import java.time.Instant;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
@@ -103,5 +106,28 @@ class InvoiceServiceTest {
 
         assertEquals(LocalDate.of(2026, 8, 10), period.end());
         assertEquals(LocalDate.of(2026, 8, 17), period.dueDate());
+    }
+
+    /** An early close overrides the calendar even while the period is nowhere near over. */
+    @Test
+    void derivedStatusIsClosedWhenClosedEarlyEvenBeforeTheBillingPeriodEnds() {
+        Invoice invoice = Invoice.builder()
+                .billingPeriodEnd(LocalDate.now().plusMonths(1))
+                .closedEarlyOn(LocalDate.now())
+                .build();
+
+        assertEquals(InvoiceStatus.CLOSED, invoiceService.derivedStatus(invoice));
+    }
+
+    /** Paid wins over everything, early close included — a settled invoice stays settled. */
+    @Test
+    void derivedStatusIsPaidEvenWhenClosedEarly() {
+        Invoice invoice = Invoice.builder()
+                .paidAt(Instant.now())
+                .billingPeriodEnd(LocalDate.now().plusMonths(1))
+                .closedEarlyOn(LocalDate.now())
+                .build();
+
+        assertEquals(InvoiceStatus.PAID, invoiceService.derivedStatus(invoice));
     }
 }

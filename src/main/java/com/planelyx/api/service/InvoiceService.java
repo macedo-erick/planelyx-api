@@ -25,6 +25,7 @@ import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -110,19 +111,46 @@ public class InvoiceService {
         return yearMonth.atDay(clampedDay);
     }
 
-    public Invoice findOrCreateInvoiceForCharge(CreditCard card, LocalDate transactionDate) {
-        BillingPeriod period = resolveBillingPeriod(card, transactionDate);
+    /** A corrupted override chain can't loop forever; this is a defensive cap, never an expected path. */
+    private static final int MAX_FORWARD_HOPS = 24;
 
-        return invoiceRepository
-                .findByCreditCardIdAndBillingPeriodStart(card.getId(), period.start())
-                .orElseGet(() -> invoiceRepository.save(Invoice.builder()
-                        .creditCard(card)
-                        .billingPeriodStart(period.start())
-                        .billingPeriodEnd(period.end())
-                        .dueDate(period.dueDate())
-                        .totalAmount(BigDecimal.ZERO)
-                        .status(InvoiceStatus.OPEN)
-                        .build()));
+    /**
+     * The invoice a charge belongs to — ordinarily whichever one {@link #resolveBillingPeriod}
+     * names, created on the spot if it doesn't exist yet.
+     *
+     * When that invoice was closed early (see {@link #closeEarly}) and the charge is dated after
+     * its cutoff, this walks forward to the next period instead: a freshly-created invoice always
+     * starts with no override, so the walk only ever chains across invoices already closed early
+     * by hand, which in practice is at most one or two hops.
+     */
+    public Invoice findOrCreateInvoiceForCharge(CreditCard card, LocalDate transactionDate) {
+        LocalDate effectiveDate = transactionDate;
+
+        for (int hop = 0; hop < MAX_FORWARD_HOPS; hop++) {
+            BillingPeriod period = resolveBillingPeriod(card, effectiveDate);
+            Optional<Invoice> existing =
+                    invoiceRepository.findByCreditCardIdAndBillingPeriodStart(card.getId(), period.start());
+
+            if (existing.isPresent() && redirectsPast(existing.get(), transactionDate)) {
+                effectiveDate = period.end().plusDays(1);
+                continue;
+            }
+
+            return existing.orElseGet(() -> invoiceRepository.save(Invoice.builder()
+                    .creditCard(card)
+                    .billingPeriodStart(period.start())
+                    .billingPeriodEnd(period.end())
+                    .dueDate(period.dueDate())
+                    .totalAmount(BigDecimal.ZERO)
+                    .build()));
+        }
+
+        throw new IllegalStateException("Could not resolve an invoice for " + card.getId() + " on " + transactionDate);
+    }
+
+    /** Whether a charge dated {@code transactionDate} belongs after this invoice's early close, not on it. */
+    private boolean redirectsPast(Invoice invoice, LocalDate transactionDate) {
+        return invoice.getClosedEarlyOn() != null && transactionDate.isAfter(invoice.getClosedEarlyOn());
     }
 
     public void recomputeTotal(UUID invoiceId) {
@@ -138,8 +166,12 @@ public class InvoiceService {
     }
 
     public InvoiceStatus derivedStatus(Invoice invoice) {
-        if (invoice.getStatus() == InvoiceStatus.PAID) {
+        if (invoice.getPaidAt() != null) {
             return InvoiceStatus.PAID;
+        }
+
+        if (invoice.getClosedEarlyOn() != null) {
+            return InvoiceStatus.CLOSED;
         }
 
         return LocalDate.now().isAfter(invoice.getBillingPeriodEnd()) ? InvoiceStatus.CLOSED : InvoiceStatus.OPEN;
@@ -209,13 +241,12 @@ public class InvoiceService {
 
         Invoice invoice = findById(id, ownerId);
 
-        if (invoice.getStatus() == InvoiceStatus.PAID) {
+        if (invoice.getPaidAt() != null) {
             return invoice;
         }
 
         postSettlement(invoice, request, ownerId);
 
-        invoice.setStatus(InvoiceStatus.PAID);
         invoice.setPaidAt(Instant.now());
 
         return invoiceRepository.save(invoice);
@@ -354,6 +385,63 @@ public class InvoiceService {
         return today.isAfter(invoice.getBillingPeriodEnd()) ? invoice.getBillingPeriodEnd() : today;
     }
 
+    /**
+     * Closes the invoice today, even though the card's calendar closing day has not been
+     * reached — compensating for a real-world cycle that has already turned over. From this
+     * moment, {@link #findOrCreateInvoiceForCharge} routes anything dated after today onto the
+     * next period instead of this one.
+     *
+     * Charges already filed into the dead zone — dated after today but still inside this period,
+     * such as a pre-dated recurring occurrence — are moved to the next invoice right away;
+     * otherwise the feature would not fix anything already filed ahead of time.
+     *
+     * Only an open invoice may be closed early: one already closed, by calendar or by an earlier
+     * early close, or already paid, has nothing left to bring forward.
+     */
+    public Invoice closeEarly(UUID id, UUID ownerId) {
+        log.info("Closing invoice {} early owner={}", id, ownerId);
+
+        Invoice invoice = findById(id, ownerId);
+
+        if (derivedStatus(invoice) != InvoiceStatus.OPEN) {
+            throw new IllegalStateException("Only an open invoice can be closed early: " + id);
+        }
+
+        LocalDate cutoff = LocalDate.now();
+        invoice.setClosedEarlyOn(cutoff);
+        invoiceRepository.save(invoice);
+
+        migrateDeadZoneCharges(invoice, cutoff);
+
+        return invoice;
+    }
+
+    /**
+     * Moves charges dated after {@code cutoff} off an invoice that just closed early, onto
+     * whichever invoice they actually belong to now. Routed back through
+     * {@link #findOrCreateInvoiceForCharge}, which already knows to skip past {@code invoice}
+     * itself now that its {@code closedEarlyOn} is set — the same redirect a brand-new charge
+     * would get.
+     */
+    private void migrateDeadZoneCharges(Invoice invoice, LocalDate cutoff) {
+        List<Transaction> deadZone = transactionRepository.findChargesByInvoiceIdAfter(invoice.getId(), cutoff);
+
+        if (deadZone.isEmpty()) {
+            return;
+        }
+
+        CreditCard card = invoice.getCreditCard();
+
+        for (Transaction charge : deadZone) {
+            charge.setInvoice(findOrCreateInvoiceForCharge(card, charge.getTransactionDate()));
+        }
+
+        transactionRepository.saveAll(deadZone);
+
+        recomputeTotal(invoice.getId());
+        deadZone.stream().map(charge -> charge.getInvoice().getId()).distinct().forEach(this::recomputeTotal);
+    }
+
     private Category adjustmentCategory(UUID ownerId) {
         return systemCategory(ownerId, SystemCategoryKey.ADJUSTMENT, CategoryType.EXPENSE);
     }
@@ -371,15 +459,15 @@ public class InvoiceService {
      * derived from the invoice, not a fact about the account in its own right, so a user
      * correcting a misclick should not be left with two rows explaining it.
      *
-     * {@code OPEN} is written back even for a period that closed long ago; {@link #derivedStatus}
-     * re-derives {@code CLOSED} on read, so it corrects itself.
+     * {@code paidAt} is simply cleared, even for a period that closed long ago; {@link
+     * #derivedStatus} re-derives {@code CLOSED} on read, so it corrects itself.
      */
     public Invoice unpay(UUID id, UUID ownerId) {
         log.info("Reversing payment on invoice {} owner={}", id, ownerId);
 
         Invoice invoice = findById(id, ownerId);
 
-        if (invoice.getStatus() != InvoiceStatus.PAID) {
+        if (invoice.getPaidAt() == null) {
             return invoice;
         }
 
@@ -387,8 +475,31 @@ public class InvoiceService {
                 .findByInvoiceIdAndKind(invoice.getId(), TransactionKind.INVOICE_PAYMENT)
                 .ifPresent(transactionRepository::delete);
 
-        invoice.setStatus(InvoiceStatus.OPEN);
         invoice.setPaidAt(null);
+
+        return invoiceRepository.save(invoice);
+    }
+
+    /**
+     * Undoes {@link #closeEarly}: clears the override so status and charge routing revert to the
+     * ordinary date-driven rules.
+     *
+     * Charges already migrated to the next invoice when the early close happened are NOT pulled
+     * back. {@link TransactionService#update} already never moves a charge across invoices when
+     * its date is edited; this is the same limitation, accepted for the same reason — nothing
+     * downstream knows how to undo a move that then cascaded, so reopening undoes the status, not
+     * every consequence already drawn from it.
+     */
+    public Invoice reopen(UUID id, UUID ownerId) {
+        log.info("Reopening early-closed invoice {} owner={}", id, ownerId);
+
+        Invoice invoice = findById(id, ownerId);
+
+        if (invoice.getClosedEarlyOn() == null || invoice.getPaidAt() != null) {
+            return invoice;
+        }
+
+        invoice.setClosedEarlyOn(null);
 
         return invoiceRepository.save(invoice);
     }

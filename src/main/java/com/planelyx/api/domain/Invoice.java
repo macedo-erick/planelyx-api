@@ -1,10 +1,7 @@
 package com.planelyx.api.domain;
 
-import com.planelyx.api.domain.enums.InvoiceStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -51,10 +48,9 @@ public class Invoice extends Auditable {
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private InvoiceStatus status;
-
     @Column(name = "paid_at")
     private Instant paidAt;
+
+    @Column(name = "closed_early_on")
+    private LocalDate closedEarlyOn;
 }

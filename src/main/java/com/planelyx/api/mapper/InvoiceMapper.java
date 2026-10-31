@@ -20,6 +20,7 @@ public final class InvoiceMapper {
                 invoice.getTotalAmount(),
                 derivedStatus,
                 invoice.getPaidAt(),
+                invoice.getClosedEarlyOn(),
                 invoice.getCreatedAt());
     }
 }

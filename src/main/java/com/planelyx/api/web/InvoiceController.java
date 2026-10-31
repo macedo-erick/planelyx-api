@@ -106,4 +106,24 @@ public class InvoiceController {
 
         return InvoiceMapper.toResponse(invoice, invoiceService.derivedStatus(invoice));
     }
+
+    /**
+     * Closes the invoice today instead of waiting for the card's calendar closing day, and moves
+     * any charge already filed past today onto the next invoice. Refused once the invoice is not
+     * open.
+     */
+    @PostMapping("/{id}/close-early")
+    public InvoiceResponse closeEarly(@PathVariable UUID id) {
+        Invoice invoice = invoiceService.closeEarly(id, currentUser.ownerId());
+
+        return InvoiceMapper.toResponse(invoice, invoiceService.derivedStatus(invoice));
+    }
+
+    /** Undoes {@code close-early}. A no-op once the invoice is paid or was not closed early. */
+    @PostMapping("/{id}/reopen")
+    public InvoiceResponse reopen(@PathVariable UUID id) {
+        Invoice invoice = invoiceService.reopen(id, currentUser.ownerId());
+
+        return InvoiceMapper.toResponse(invoice, invoiceService.derivedStatus(invoice));
+    }
 }
